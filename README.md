@@ -93,6 +93,11 @@ http://localhost:8081
 2. A browser layer (guarded by `typeof document`) that wires the engine to the
    page: rendering, project memory, save/load, exports, and toasts.
 
+`site.js` is separate and owns only presentational chrome (theme toggle,
+mobile nav, scroll reveal, the "Try an example" demo). It never touches
+generation logic. All colors are CSS tokens with a dark default and a
+`[data-theme="light"]` override, so the theme toggle applies everywhere.
+
 This separation keeps the generation logic testable in Node with zero
 dependencies while the app stays fully frontend-only.
 
@@ -114,7 +119,8 @@ modes.
 bookforge-pro/
 ├── index.html
 ├── style.css
-├── script.js
+├── script.js          # blueprint engine + studio wiring
+├── site.js            # website chrome: theme, nav, reveal, demo
 ├── tests/
 │   └── engine.test.js
 ├── README.md
