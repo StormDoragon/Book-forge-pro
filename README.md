@@ -7,13 +7,19 @@ It is designed to run fully offline in the browser with no API keys, backend, or
 ## Highlights
 
 - Separate planning engines for Fiction, Nonfiction, and Memoir
-- Concept analyzer with naturalized signal output
-- Chapter intelligence with story beats and chapter-level hooks
+- A concept-driven engine: it extracts the protagonist, setting, central
+  object, antagonist, goal, and stakes from your idea and threads them through
+  every module, so two different ideas produce two genuinely different blueprints
+- Genre-aware vocabulary for Fantasy, Sci-fi, Mystery, Romance, Thriller,
+  Historical, Literary, and more
+- Chapter intelligence with story beats, unique chapter titles, and ending hooks
 - Depth levels: Quick, Professional, Publisher-Level
 - Blueprint Intelligence Score with strengths and fix suggestions
 - Project memory in localStorage (titles, chapter notes, progress, export history)
-- Section tools: copy, regenerate, and refine
+- Section tools: copy, regenerate, and refine (Professional / Cinematic / Shorter / Specific)
+- Non-blocking toast notifications instead of blocking alerts
 - Exports: Markdown and TXT
+- Deterministic output: the same idea always yields the same blueprint
 
 ## Core Workflow
 
@@ -78,6 +84,30 @@ python3 -m http.server 8081
 http://localhost:8081
 ```
 
+## Architecture
+
+`script.js` is split into two halves:
+
+1. A pure, DOM-free engine (data + functions) that turns an idea into a
+   structured blueprint. It has no side effects and is exported for tests.
+2. A browser layer (guarded by `typeof document`) that wires the engine to the
+   page: rendering, project memory, save/load, exports, and toasts.
+
+This separation keeps the generation logic testable in Node with zero
+dependencies while the app stays fully frontend-only.
+
+## Tests
+
+The engine has a zero-dependency smoke suite. Run it with:
+
+```bash
+node tests/engine.test.js
+```
+
+It asserts the core promise (output reflects the actual concept), checks
+chapter-title uniqueness, determinism, depth-level behavior, and the rewrite
+modes.
+
 ## Repository Layout
 
 ```text
@@ -85,6 +115,8 @@ bookforge-pro/
 ├── index.html
 ├── style.css
 ├── script.js
+├── tests/
+│   └── engine.test.js
 ├── README.md
 ├── CONTRIBUTING.md
 ├── LICENSE
@@ -94,9 +126,9 @@ bookforge-pro/
 
 ## Roadmap
 
-- Improve offline prose realism and chapter hook diversity
 - Add DOCX/PDF export pipeline
-- Introduce backend AI mode as an optional upgrade path
+- Expand genre vocabulary banks and entity extraction
+- Introduce an optional backend AI mode as an upgrade path
 
 ## License
 
