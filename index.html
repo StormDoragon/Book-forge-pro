@@ -1,109 +1,281 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BookForge Pro | Book Architect Studio</title>
+  <title>BookForge Pro | Turn Rough Ideas Into Publishing-Ready Blueprints</title>
+  <meta name="description" content="BookForge Pro is an offline book-planning studio that turns a plain-language idea into a structured, concept-driven manuscript blueprint. No login, no API keys." />
+  <meta name="color-scheme" content="dark light" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <div class="bg-orb orb-a"></div>
-  <div class="bg-orb orb-b"></div>
+  <a class="skip-link" href="#studio">Skip to the studio</a>
 
-  <header class="app-header">
-    <div>
-      <p class="eyebrow">Private Editorial Engine</p>
-      <h1>BookForge Pro</h1>
-      <p class="subhead">Book Architect Studio: turn rough ideas into a publishing-ready blueprint.</p>
-    </div>
-    <div class="header-actions">
-      <button id="saveProjectBtn" class="btn btn-primary">Save Draft</button>
-      <button id="loadProjectBtn" class="btn btn-secondary">Load Draft</button>
-      <button id="clearProjectBtn" class="btn btn-ghost">Clear</button>
+  <div class="bg-orb orb-a" aria-hidden="true"></div>
+  <div class="bg-orb orb-b" aria-hidden="true"></div>
+
+  <!-- Site navigation -->
+  <header class="site-nav" id="top">
+    <div class="nav-inner">
+      <a class="brand" href="#top" aria-label="BookForge Pro home">
+        <span class="brand-mark" aria-hidden="true">◆</span>
+        <span>BookForge<span class="brand-pro">Pro</span></span>
+      </a>
+
+      <nav class="nav-links" id="primaryNav" aria-label="Primary">
+        <a href="#workflow">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#studio">Studio</a>
+      </nav>
+
+      <div class="nav-actions">
+        <button id="themeToggle" class="icon-btn" type="button" aria-label="Switch color theme" title="Switch theme">
+          <span class="theme-icon" aria-hidden="true">☾</span>
+        </button>
+        <a href="#studio" class="btn btn-primary btn-small open-studio">Open Studio</a>
+        <button id="navToggle" class="icon-btn nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="primaryNav">
+          <span aria-hidden="true">☰</span>
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="layout">
-    <section class="card intake">
-      <h2>Book Identity</h2>
-      <div class="field-grid">
-        <label>
-          Project Name
-          <input id="projectName" type="text" placeholder="Example: The Quiet Empire" />
-        </label>
-        <label>
-          Core Book Idea
-          <textarea id="bookIdea" rows="4" placeholder="Dump the messy concept in plain language..."></textarea>
-        </label>
-        <label>
-          Genre
-          <select id="genre"></select>
-        </label>
-        <label>
-          Book Type
-          <select id="bookType"></select>
-        </label>
-        <label>
-          Target Reader
-          <input id="targetReader" type="text" placeholder="Who must this book help?" />
-        </label>
-        <label>
-          Tone
-          <select id="tone"></select>
-        </label>
-        <label>
-          Depth Level
-          <select id="depthLevel">
-            <option value="Quick Blueprint">Quick Blueprint</option>
-            <option value="Professional Blueprint" selected>Professional Blueprint</option>
-            <option value="Publisher-Level Blueprint">Publisher-Level Blueprint</option>
-          </select>
-        </label>
-        <label>
-          Positioning Angle
-          <input id="positioning" type="text" placeholder="How this stands out in the market" />
-        </label>
-        <label>
-          Intended Length (words)
-          <input id="length" type="number" min="5000" step="1000" value="60000" />
-        </label>
+  <main>
+    <!-- Hero -->
+    <section class="hero reveal">
+      <div class="hero-copy">
+        <p class="eyebrow">Private editorial engine &middot; 100% offline</p>
+        <h1 class="hero-title">Turn a rough idea into a <span class="grad-text">publishing-ready blueprint</span>.</h1>
+        <p class="hero-sub">
+          BookForge Pro reads your concept, extracts the characters, setting, stakes, and central
+          conflict, then architects a full manuscript plan: structure, chapter intelligence, scene
+          prompts, and publishing assets. No login. No API keys. Nothing leaves your browser.
+        </p>
+        <div class="hero-cta">
+          <a href="#studio" class="btn btn-primary btn-lg open-studio">Start building free</a>
+          <button id="tryExampleBtn" class="btn btn-secondary btn-lg" type="button">Try an example</button>
+        </div>
+        <ul class="hero-stats" aria-label="Highlights">
+          <li><strong>3</strong> dedicated engines</li>
+          <li><strong>14</strong> chapter blueprints</li>
+          <li><strong>0</strong> data sent anywhere</li>
+        </ul>
       </div>
-      <button id="generateBtn" class="btn btn-primary wide">Generate Book Blueprint</button>
-    </section>
 
-    <section class="card outputs">
-      <h2>Blueprint Output</h2>
-      <div id="qualityPanel" class="quality-panel"></div>
-      <div id="conceptPanel" class="concept-panel"></div>
-      <section id="projectMemoryPanel" class="project-memory-panel">
-        <h3>Project Memory</h3>
-        <p id="memoryProgress" class="memory-progress"></p>
-        <div class="memory-columns">
-          <div class="memory-column">
-            <h4>Favorite Titles</h4>
-            <ul id="memoryFavoriteTitles" class="memory-list"></ul>
+      <div class="hero-preview" aria-hidden="true">
+        <div class="preview-card">
+          <div class="preview-bar">
+            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="preview-name">the-quiet-empire.md</span>
           </div>
-          <div class="memory-column">
-            <h4>Export History</h4>
-            <ul id="memoryExportHistory" class="memory-list"></ul>
+          <div class="preview-score">Blueprint Intelligence Score <strong>9/10</strong></div>
+          <p class="preview-label">Logline</p>
+          <p class="preview-text">Mara must confront a buried wartime secret after a hidden letter contradicts the official story&hellip;</p>
+          <p class="preview-label">Chapter 1 &mdash; Story Beat: Opening Image</p>
+          <p class="preview-text">The Letter That Should Not Exist</p>
+          <div class="preview-chips">
+            <span>Protagonist</span><span>Setting</span><span>Stakes</span><span>Theme</span>
           </div>
         </div>
-        <h4>Chapter Notes</h4>
-        <div id="chapterNotesContainer" class="chapter-notes-container"></div>
-      </section>
-      <div class="module-actions">
-        <button id="copyAllBtn" class="btn btn-secondary">Copy Full Blueprint</button>
-        <button id="exportMdBtn" class="btn btn-secondary">Export Markdown</button>
-        <button id="exportTxtBtn" class="btn btn-secondary">Export TXT</button>
-        <button id="regenerateChapterTitlesBtn" class="btn btn-secondary">Regenerate Chapter Titles</button>
       </div>
-      <div id="outputContainer" class="output-container"></div>
+    </section>
+
+    <!-- Workflow -->
+    <section class="workflow reveal" id="workflow" aria-labelledby="workflow-title">
+      <div class="section-head">
+        <h2 id="workflow-title">From idea to manuscript plan in one pass</h2>
+        <p>A clear path from a messy concept to a structure you can actually write from.</p>
+      </div>
+      <ol class="step-grid">
+        <li class="step-card">
+          <span class="step-num">1</span>
+          <h3>Describe it</h3>
+          <p>Dump the concept in plain language. Pick a genre, type, tone, and depth.</p>
+        </li>
+        <li class="step-card">
+          <span class="step-num">2</span>
+          <h3>Analyze</h3>
+          <p>The engine extracts protagonist, setting, central object, antagonist, goal, and stakes.</p>
+        </li>
+        <li class="step-card">
+          <span class="step-num">3</span>
+          <h3>Architect</h3>
+          <p>Get structure, chapter intelligence, scene prompts, and a Blueprint Intelligence Score.</p>
+        </li>
+        <li class="step-card">
+          <span class="step-num">4</span>
+          <h3>Refine &amp; export</h3>
+          <p>Regenerate or refine any section, save your draft, and export Markdown or TXT.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Features -->
+    <section class="features reveal" id="features" aria-labelledby="features-title">
+      <div class="section-head">
+        <h2 id="features-title">Three engines, one studio</h2>
+        <p>Each book type gets a planning model built for how that book actually works.</p>
+      </div>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">✶</div>
+          <h3>Fiction</h3>
+          <p>Logline, dramatic question, protagonist arc, world rules, act structure, and beat-level chapter intelligence with ending hooks.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">◷</div>
+          <h3>Nonfiction</h3>
+          <p>Reader problem and promise, a named framework, a chapter learning path, case studies, exercises, and marketplace keywords.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">❧</div>
+          <h3>Memoir</h3>
+          <p>Life question, emotional wound, turning points, a memory map, reflective takeaways, and a back-cover blurb.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">⚙</div>
+          <h3>Concept-driven</h3>
+          <p>Your characters, places, and stakes are threaded through every module &mdash; two ideas never produce the same blueprint.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">↻</div>
+          <h3>Refine in place</h3>
+          <p>Copy, regenerate, or rewrite any section: more professional, more cinematic, shorter, or more specific.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon" aria-hidden="true">🛇</div>
+          <h3>Private by design</h3>
+          <p>Everything runs in your browser. Project memory lives in local storage. No account, no server, no tracking.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- Studio (the app) -->
+    <section class="studio reveal" id="studio" aria-labelledby="studio-title">
+      <div class="studio-head">
+        <div>
+          <p class="eyebrow">The Studio</p>
+          <h2 id="studio-title">Book Architect</h2>
+          <p class="studio-sub">Turn your rough idea into a structured, publishing-ready blueprint.</p>
+        </div>
+        <div class="header-actions">
+          <button id="saveProjectBtn" class="btn btn-secondary" type="button">Save Draft</button>
+          <button id="loadProjectBtn" class="btn btn-secondary" type="button">Load Draft</button>
+          <button id="clearProjectBtn" class="btn btn-ghost" type="button">Clear</button>
+        </div>
+      </div>
+
+      <div class="layout">
+        <section class="card intake" aria-labelledby="intake-title">
+          <h3 id="intake-title" class="card-title">Book Identity</h3>
+          <div class="field-grid">
+            <label>
+              Project Name
+              <input id="projectName" type="text" placeholder="Example: The Quiet Empire" />
+            </label>
+            <label class="full">
+              Core Book Idea
+              <textarea id="bookIdea" rows="4" placeholder="Dump the messy concept in plain language. Name a character, a place, and what is at stake..."></textarea>
+            </label>
+            <label>
+              Genre
+              <select id="genre"></select>
+            </label>
+            <label>
+              Book Type
+              <select id="bookType"></select>
+            </label>
+            <label>
+              Target Reader
+              <input id="targetReader" type="text" placeholder="Who must this book help?" />
+            </label>
+            <label>
+              Tone
+              <select id="tone"></select>
+            </label>
+            <label>
+              Depth Level
+              <select id="depthLevel">
+                <option value="Quick Blueprint">Quick Blueprint</option>
+                <option value="Professional Blueprint" selected>Professional Blueprint</option>
+                <option value="Publisher-Level Blueprint">Publisher-Level Blueprint</option>
+              </select>
+            </label>
+            <label>
+              Positioning Angle
+              <input id="positioning" type="text" placeholder="How this stands out in the market" />
+            </label>
+            <label>
+              Intended Length (words)
+              <input id="length" type="number" min="5000" step="1000" value="60000" />
+            </label>
+          </div>
+          <button id="generateBtn" class="btn btn-primary wide" type="button">Generate Book Blueprint</button>
+        </section>
+
+        <section class="card outputs" aria-labelledby="outputs-title">
+          <h3 id="outputs-title" class="card-title">Blueprint Output</h3>
+
+          <div id="qualityPanel" class="quality-panel info-panel" aria-live="polite"></div>
+          <div id="conceptPanel" class="concept-panel info-panel" aria-live="polite"></div>
+
+          <section id="projectMemoryPanel" class="project-memory-panel" aria-labelledby="memory-title">
+            <h4 id="memory-title">Project Memory</h4>
+            <p id="memoryProgress" class="memory-progress"></p>
+            <div class="memory-columns">
+              <div class="memory-column">
+                <h5>Favorite Titles</h5>
+                <ul id="memoryFavoriteTitles" class="memory-list"></ul>
+              </div>
+              <div class="memory-column">
+                <h5>Export History</h5>
+                <ul id="memoryExportHistory" class="memory-list"></ul>
+              </div>
+            </div>
+            <h5 class="notes-heading">Chapter Notes</h5>
+            <div id="chapterNotesContainer" class="chapter-notes-container"></div>
+          </section>
+
+          <div class="module-actions">
+            <button id="copyAllBtn" class="btn btn-secondary" type="button">Copy Full Blueprint</button>
+            <button id="exportMdBtn" class="btn btn-secondary" type="button">Export Markdown</button>
+            <button id="exportTxtBtn" class="btn btn-secondary" type="button">Export TXT</button>
+            <button id="regenerateChapterTitlesBtn" class="btn btn-secondary" type="button">Regenerate Chapter Titles</button>
+          </div>
+
+          <div id="outputContainer" class="output-container">
+            <div class="empty-state">
+              <div class="empty-icon" aria-hidden="true">◆</div>
+              <p>Your blueprint will appear here.</p>
+              <p class="empty-hint">Fill in the book identity and press <strong>Generate Book Blueprint</strong>, or hit <strong>Try an example</strong> above.</p>
+            </div>
+          </div>
+        </section>
+      </div>
     </section>
   </main>
 
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <span class="brand-mark" aria-hidden="true">◆</span>
+        <span>BookForge<span class="brand-pro">Pro</span></span>
+        <p>Idea &rarr; Strategy &rarr; Outline &rarr; Chapter System &rarr; Writing Plan &rarr; Revision &rarr; Publishing Assets</p>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a href="#workflow">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#studio">Studio</a>
+        <a href="#top">Back to top</a>
+      </nav>
+    </div>
+    <p class="footer-legal">&copy; <span id="footerYear">2026</span> BookForge Pro &middot; Frontend-only &middot; MIT Licensed</p>
+  </footer>
+
+  <!-- Output module template (consumed by the engine; do not change its structure) -->
   <template id="outputModuleTemplate">
     <article class="output-module">
       <div class="module-head">
@@ -130,10 +302,7 @@
     </article>
   </template>
 
-  <footer class="app-footer">
-    <p>Workflow: Idea -> Strategy -> Outline -> Chapter System -> Writing Plan -> Revision -> Publishing Assets</p>
-  </footer>
-
   <script src="script.js"></script>
+  <script src="site.js"></script>
 </body>
 </html>
