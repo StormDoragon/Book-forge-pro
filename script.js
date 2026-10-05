@@ -1231,6 +1231,19 @@ if (typeof document !== "undefined") {
     exportHistory: []
   };
 
+  /*
+   * Analytics: categories only. Never send the idea, project name, or any
+   * other text the user typed. window.va is the Vercel Web Analytics queue
+   * defined in index.html; without it this is a no-op.
+   */
+  function track(name, data) {
+    try {
+      if (typeof window.va === "function") window.va("event", { name, data });
+    } catch (err) {
+      /* analytics must never break the app */
+    }
+  }
+
   /* --- Toast notifications (non-blocking replacement for alert) --- */
   let toastContainer = null;
   function toast(message, kind = "info") {
@@ -1586,7 +1599,10 @@ if (typeof document !== "undefined") {
       return;
     }
     navigator.clipboard.writeText(blueprintToMarkdown(blueprint, collectInput()))
-      .then(() => toast("Full blueprint copied to clipboard.", "success"))
+      .then(() => {
+        track("Export", { format: "copy" });
+        toast("Full blueprint copied to clipboard.", "success");
+      })
       .catch(() => toast("Copy failed. Your browser blocked clipboard access.", "error"));
   }
 
@@ -1606,7 +1622,7 @@ if (typeof document !== "undefined") {
     projectMemory.exportHistory = projectMemory.exportHistory.slice(0, 20);
   }
 
-  function handleGenerate() {
+  function handleGenerate(source = "manual") {
     const input = collectInput();
     if (!input.bookIdea) {
       toast("Please enter your core book idea first.", "error");
@@ -1628,6 +1644,12 @@ if (typeof document !== "undefined") {
     renderProjectMemory();
     renderBlueprint(blueprint);
     toast("Blueprint generated.", "success");
+    track("Blueprint Generated", {
+      source,
+      engine: result.engineType,
+      genre: input.genre,
+      depth: input.depthLevel
+    });
   }
 
 
@@ -1650,6 +1672,7 @@ if (typeof document !== "undefined") {
     if (navigator.share && matchMedia("(pointer: coarse)").matches) {
       try {
         await navigator.share({ title, text: "I just forged my book's blueprint:", url });
+        track("Share Link", { method: "native" });
         return;
       } catch (err) {
         if (err && err.name === "AbortError") return;
@@ -1657,9 +1680,11 @@ if (typeof document !== "undefined") {
     }
     try {
       await navigator.clipboard.writeText(url);
+      track("Share Link", { method: "clipboard" });
       toast("Share link copied. Anyone who opens it sees this exact blueprint.", "success");
     } catch (err) {
       window.prompt("Copy your share link:", url);
+      track("Share Link", { method: "prompt" });
     }
   }
 
@@ -1777,6 +1802,7 @@ if (typeof document !== "undefined") {
       if (file && navigator.canShare && navigator.canShare({ files: [file] }) && matchMedia("(pointer: coarse)").matches) {
         try {
           await navigator.share({ files: [file], title: lastInput.projectName, url: makeShareUrl(lastInput) });
+          track("Share Card", { method: "native" });
           return;
         } catch (err) {
           if (err && err.name === "AbortError") return;
@@ -1791,6 +1817,7 @@ if (typeof document !== "undefined") {
       anchor.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       recordExport("Share card", filename);
+      track("Share Card", { method: "download" });
       renderProjectMemory();
       toast("Share card saved. Post it with your share link.", "success");
     }, "image/png");
@@ -1802,6 +1829,7 @@ if (typeof document !== "undefined") {
       return;
     }
     recordExport("PDF", `${slugifyProjectName(collectInput().projectName)}.pdf`);
+    track("Export", { format: "pdf" });
     renderProjectMemory();
     const heading = document.getElementById("outputs-title");
     const previous = { title: document.title, heading: heading ? heading.textContent : "" };
@@ -1817,12 +1845,13 @@ if (typeof document !== "undefined") {
   function loadFromShareHash() {
     if (!location.hash.startsWith(SHARE_HASH_PREFIX)) return false;
     const input = decodeShareState(location.hash.slice(SHARE_HASH_PREFIX.length));
+    track("Shared Link Opened", { valid: !!input });
     if (!input) {
       toast("That share link is incomplete or damaged.", "error");
       return false;
     }
     applyInputState(input);
-    handleGenerate();
+    handleGenerate("shared_link");
     // Drop the fragment so a refresh after edits doesn't revert to the link.
     history.replaceState(null, "", `${location.pathname}${location.search}#studio`);
     const studio = document.getElementById("studio");
@@ -1836,7 +1865,12 @@ if (typeof document !== "undefined") {
     populateSelect(elements.bookType, BOOK_TYPES);
     populateSelect(elements.tone, TONES);
 
-    elements.generateBtn.addEventListener("click", handleGenerate);
+    elements.generateBtn.addEventListener("click", () => {
+      // site.js tags example runs so they aren't counted as real ideas.
+      const source = elements.generateBtn.dataset.source || "manual";
+      delete elements.generateBtn.dataset.source;
+      handleGenerate(source);
+    });
     elements.saveProjectBtn.addEventListener("click", saveProject);
     elements.loadProjectBtn.addEventListener("click", loadProject);
     elements.clearProjectBtn.addEventListener("click", clearProject);
@@ -1853,6 +1887,7 @@ if (typeof document !== "undefined") {
       recordExport("Markdown", filename);
       renderProjectMemory();
       downloadFile(filename, blueprintToMarkdown(blueprint, input), "text/markdown");
+      track("Export", { format: "md" });
       toast("Markdown exported.", "success");
     });
 
@@ -1863,6 +1898,7 @@ if (typeof document !== "undefined") {
       recordExport("TXT", filename);
       renderProjectMemory();
       downloadFile(filename, blueprintToText(blueprint, input), "text/plain");
+      track("Export", { format: "txt" });
       toast("Text file exported.", "success");
     });
 

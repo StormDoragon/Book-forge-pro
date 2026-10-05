@@ -153,7 +153,10 @@
       if (studio) studio.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
       // Let the scroll start, then generate via the engine's own handler.
       if (generateBtn) {
-        window.setTimeout(() => generateBtn.click(), prefersReducedMotion ? 0 : 480);
+        window.setTimeout(() => {
+          generateBtn.dataset.source = "example";
+          generateBtn.click();
+        }, prefersReducedMotion ? 0 : 480);
       }
     });
   }
