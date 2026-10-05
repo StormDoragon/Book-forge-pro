@@ -57,7 +57,11 @@ const DEPTH_LEVELS = [
   "Publisher-Level Blueprint"
 ];
 
+// Legacy single-draft key (pre multi-project); migrated on first load.
 const STORAGE_KEY = "bookforge-pro-project-v2";
+const PROJECTS_KEY = "bookforge-pro-projects-v1";
+// "Unlimited saved projects" is a Pro feature on the pricing page.
+const FREE_PROJECT_LIMIT = 3;
 
 /*
  * Genre profiles supply tasteful fallbacks when the idea is sparse. They are
@@ -1163,12 +1167,106 @@ function decodeShareState(encoded) {
   return input;
 }
 
+/* ------------------------------------------------------------------ */
+/* Project store (pure; the browser layer persists it to localStorage) */
+/* ------------------------------------------------------------------ */
+
+function emptyProjectStore() {
+  return { version: 1, activeId: null, projects: {} };
+}
+
+function isProjectState(state) {
+  return !!state && typeof state === "object" && !!state.input && typeof state.input === "object";
+}
+
+function projectName(state) {
+  const name = isProjectState(state) && typeof state.input.projectName === "string" ? state.input.projectName.trim() : "";
+  return name || "Untitled Project";
+}
+
+function makeProjectId(now, salt) {
+  return `p_${now.toString(36)}_${String(salt).replace(/[^a-z0-9]/gi, "").slice(0, 8)}`;
+}
+
+// Parse the stored JSON, dropping anything malformed. If there is no store
+// yet, a legacy single draft becomes the first project.
+function parseProjectStore(raw, legacyRaw, now) {
+  let store = emptyProjectStore();
+  try {
+    const parsed = raw ? JSON.parse(raw) : null;
+    if (parsed && parsed.version === 1 && parsed.projects && typeof parsed.projects === "object") {
+      Object.values(parsed.projects).forEach((project) => {
+        if (project && typeof project.id === "string" && isProjectState(project.state)) {
+          store.projects[project.id] = {
+            id: project.id,
+            name: projectName(project.state),
+            updatedAt: Number(project.updatedAt) || 0,
+            state: project.state
+          };
+        }
+      });
+      store.activeId = store.projects[parsed.activeId] ? parsed.activeId : null;
+      return store;
+    }
+  } catch (err) {
+    store = emptyProjectStore();
+  }
+  try {
+    const legacy = legacyRaw ? JSON.parse(legacyRaw) : null;
+    if (isProjectState(legacy)) {
+      const id = makeProjectId(now, "legacy");
+      store.projects[id] = { id, name: projectName(legacy), updatedAt: now, state: legacy };
+    }
+  } catch (err) {
+    /* unreadable legacy draft: start empty */
+  }
+  return store;
+}
+
+function listProjects(store) {
+  return Object.values(store.projects)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map(({ id, name, updatedAt, state }) => ({
+      id,
+      name,
+      updatedAt,
+      bookType: (state.input && state.input.bookType) || "",
+      hasBlueprint: Array.isArray(state.blueprint) && state.blueprint.length > 0
+    }));
+}
+
+// Returns { store, id, status } without mutating the input store. status is
+// "updated" (overwrote the active project), "created", or "limit" (a new
+// project would exceed the limit; nothing saved).
+function saveToProjectStore(store, state, { now, salt, limit = FREE_PROJECT_LIMIT }) {
+  const projects = { ...store.projects };
+  const activeId = store.activeId && projects[store.activeId] ? store.activeId : null;
+  if (!activeId && Object.keys(projects).length >= limit) {
+    return { store, id: null, status: "limit" };
+  }
+  const id = activeId || makeProjectId(now, salt);
+  projects[id] = { id, name: projectName(state), updatedAt: now, state };
+  return { store: { ...store, activeId: id, projects }, id, status: activeId ? "updated" : "created" };
+}
+
+function deleteFromProjectStore(store, id) {
+  const projects = { ...store.projects };
+  delete projects[id];
+  return { ...store, activeId: store.activeId === id ? null : store.activeId, projects };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     analyzeConcept,
     buildBlueprint,
     encodeShareState,
     decodeShareState,
+    emptyProjectStore,
+    parseProjectStore,
+    listProjects,
+    saveToProjectStore,
+    deleteFromProjectStore,
+    FREE_PROJECT_LIMIT,
     buildWorld,
     makeChapterTitles,
     normalizeBookType,
@@ -1201,6 +1299,11 @@ if (typeof document !== "undefined") {
     saveProjectBtn: document.getElementById("saveProjectBtn"),
     loadProjectBtn: document.getElementById("loadProjectBtn"),
     clearProjectBtn: document.getElementById("clearProjectBtn"),
+    activeProjectLabel: document.getElementById("activeProjectLabel"),
+    projectsDialog: document.getElementById("projectsDialog"),
+    projectsDialogClose: document.getElementById("projectsDialogClose"),
+    projectsList: document.getElementById("projectsList"),
+    projectsLimitNote: document.getElementById("projectsLimitNote"),
     copyAllBtn: document.getElementById("copyAllBtn"),
     exportMdBtn: document.getElementById("exportMdBtn"),
     exportTxtBtn: document.getElementById("exportTxtBtn"),
@@ -1533,55 +1636,196 @@ if (typeof document !== "undefined") {
     elements.length.value = state.length || 60000;
   }
 
-  function saveProject() {
-    const state = {
-      input: collectInput(),
-      blueprint,
-      concept: lastConcept,
-      quality: lastScore,
-      projectMemory
-    };
+  /* --- Saved projects (localStorage, several per browser) --- */
+
+  let projectStore = emptyProjectStore();
+
+  function readProjectStore() {
+    let raw = null;
+    let legacy = null;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      toast("Project saved locally.", "success");
+      raw = localStorage.getItem(PROJECTS_KEY);
+      legacy = localStorage.getItem(STORAGE_KEY);
+    } catch (err) {
+      /* storage blocked: work in memory only */
+    }
+    projectStore = parseProjectStore(raw, legacy, Date.now());
+    // Persist a migrated legacy draft so it isn't re-imported later.
+    if (!raw && legacy && Object.keys(projectStore.projects).length) writeProjectStore();
+  }
+
+  function writeProjectStore() {
+    try {
+      localStorage.setItem(PROJECTS_KEY, JSON.stringify(projectStore));
+      return true;
     } catch (err) {
       toast("Could not save: local storage is full or blocked.", "error");
+      return false;
     }
   }
 
-  function loadProject() {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      toast("No saved draft found.", "error");
+  function setActiveProject(id) {
+    projectStore = { ...projectStore, activeId: id };
+    writeProjectStore();
+    renderActiveProject();
+  }
+
+  function renderActiveProject() {
+    const label = elements.activeProjectLabel;
+    if (!label) return;
+    const active = projectStore.activeId && projectStore.projects[projectStore.activeId];
+    label.textContent = "";
+    if (!active) {
+      label.textContent = "Unsaved project";
       return;
     }
-    let state;
-    try {
-      state = JSON.parse(raw);
-    } catch (err) {
-      toast("Saved draft is corrupted and could not be read.", "error");
+    const name = document.createElement("strong");
+    name.textContent = active.name;
+    label.append("Editing ", name, ` · saved ${formatSavedAt(active.updatedAt)}`);
+  }
+
+  function formatSavedAt(timestamp) {
+    const seconds = Math.max(0, Math.round((Date.now() - timestamp) / 1000));
+    if (seconds < 60) return "just now";
+    if (seconds < 3600) return `${Math.round(seconds / 60)} min ago`;
+    return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  }
+
+  function currentProjectState() {
+    return { input: collectInput(), blueprint, concept: lastConcept, quality: lastScore, projectMemory };
+  }
+
+  function saveProject() {
+    const result = saveToProjectStore(projectStore, currentProjectState(), {
+      now: Date.now(),
+      salt: Math.random().toString(36).slice(2)
+    });
+    if (result.status === "limit") {
+      track("Project", { action: "limit" });
+      toast(`The free plan keeps ${FREE_PROJECT_LIMIT} projects. Open one to overwrite it, or delete one.`, "error");
+      openProjectsDialog();
       return;
     }
-    if (!state || !state.input) {
-      toast("Saved draft format is invalid.", "error");
+    const previous = projectStore;
+    projectStore = result.store;
+    if (!writeProjectStore()) {
+      projectStore = previous;
       return;
     }
+    track("Project", { action: result.status === "created" ? "save_new" : "save" });
+    renderActiveProject();
+    toast(result.status === "created" ? "Saved as a new project." : "Project saved.", "success");
+  }
+
+  function applyProjectState(state) {
     applyInputState(state.input);
     blueprint = Array.isArray(state.blueprint) ? state.blueprint : [];
     lastInput = state.input;
     lastConcept = state.concept || null;
     lastScore = state.quality || null;
-    projectMemory = state.projectMemory || projectMemory;
-
+    projectMemory = state.projectMemory || { favoriteTitles: [], chapterNotes: {}, draftProgress: 0, exportHistory: [] };
     renderConcept(lastConcept);
     renderQuality(lastScore);
     renderProjectMemory();
+    elements.outputContainer.innerHTML = "";
     if (blueprint.length) renderBlueprint(blueprint);
-    toast("Saved draft loaded.", "success");
   }
 
-  function clearProject() {
-    if (!confirm("Clear the current workspace and outputs?")) return;
+  function openProject(id) {
+    const project = projectStore.projects[id];
+    if (!project) return;
+    applyProjectState(project.state);
+    hideRemixBanner();
+    if (blueprint.length) showPlanSignup(normalizeBookType(project.state.input.bookType));
+    setActiveProject(id);
+    track("Project", { action: "open" });
+    closeProjectsDialog();
+    toast(`Opened "${project.name}".`, "success");
+  }
+
+  function deleteProject(id) {
+    const project = projectStore.projects[id];
+    if (!project || !confirm(`Delete "${project.name}"? This can't be undone.`)) return;
+    projectStore = deleteFromProjectStore(projectStore, id);
+    writeProjectStore();
+    track("Project", { action: "delete" });
+    renderActiveProject();
+    renderProjectsList();
+    toast("Project deleted.", "info");
+  }
+
+  function renderProjectsList() {
+    const list = elements.projectsList;
+    list.innerHTML = "";
+    const projects = listProjects(projectStore);
+    if (!projects.length) {
+      const empty = document.createElement("li");
+      empty.className = "projects-empty";
+      empty.textContent = "No saved projects yet. Generate a blueprint and press Save.";
+      list.appendChild(empty);
+    }
+    projects.forEach((project) => {
+      const row = document.createElement("li");
+      row.className = `project-row${project.id === projectStore.activeId ? " is-active" : ""}`;
+      const info = document.createElement("div");
+      info.className = "project-info";
+      const name = document.createElement("p");
+      name.className = "project-name";
+      name.textContent = project.name;
+      const meta = document.createElement("p");
+      meta.className = "project-meta";
+      const parts = [project.bookType, project.hasBlueprint ? "blueprint" : "no blueprint yet", `saved ${formatSavedAt(project.updatedAt)}`];
+      if (project.id === projectStore.activeId) parts.unshift("open now");
+      meta.textContent = parts.filter(Boolean).join(" · ");
+      info.append(name, meta);
+
+      const actions = document.createElement("div");
+      actions.className = "project-actions";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "btn btn-secondary btn-small";
+      open.textContent = "Open";
+      open.setAttribute("aria-label", `Open ${project.name}`);
+      open.addEventListener("click", () => openProject(project.id));
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "btn btn-ghost btn-small";
+      remove.textContent = "Delete";
+      remove.setAttribute("aria-label", `Delete ${project.name}`);
+      remove.addEventListener("click", () => deleteProject(project.id));
+      actions.append(open, remove);
+      row.append(info, actions);
+      list.appendChild(row);
+    });
+
+    const note = elements.projectsLimitNote;
+    note.textContent = `${projects.length} of ${FREE_PROJECT_LIMIT} projects on the free plan. `;
+    const link = document.createElement("a");
+    link.href = "#pricing";
+    link.textContent = "Pro (coming soon) keeps unlimited projects.";
+    link.addEventListener("click", closeProjectsDialog);
+    note.appendChild(link);
+  }
+
+  function openProjectsDialog() {
+    renderProjectsList();
+    const dialog = elements.projectsDialog;
+    if (typeof dialog.showModal === "function") {
+      if (!dialog.open) dialog.showModal();
+    } else {
+      dialog.setAttribute("open", "");
+    }
+  }
+
+  function closeProjectsDialog() {
+    const dialog = elements.projectsDialog;
+    if (typeof dialog.close === "function" && dialog.open) dialog.close();
+    else dialog.removeAttribute("open");
+  }
+
+  // Clears the workspace for a fresh idea. Saved projects are untouched.
+  function newProject() {
+    if (blueprint.length && !confirm("Start a new project? Unsaved changes in the workspace will be lost.")) return;
     [elements.projectName, elements.bookIdea, elements.targetReader, elements.positioning].forEach((el) => {
       el.value = "";
     });
@@ -1598,10 +1842,12 @@ if (typeof document !== "undefined") {
     lastConcept = null;
     lastScore = null;
     projectMemory = { favoriteTitles: [], chapterNotes: {}, draftProgress: 0, exportHistory: [] };
-    localStorage.removeItem(STORAGE_KEY);
     hideRemixBanner();
+    if (elements.planSignup) elements.planSignup.hidden = true;
     renderProjectMemory();
-    toast("Workspace cleared.", "info");
+    setActiveProject(null);
+    elements.bookIdea.focus();
+    toast("New project started. Your saved projects are still in My Projects.", "info");
   }
 
   function copyFullBlueprint() {
@@ -1863,6 +2109,7 @@ if (typeof document !== "undefined") {
       return false;
     }
     applyInputState(input);
+    if (projectStore.activeId) setActiveProject(null);
     handleGenerate("shared_link");
     showRemixBanner(input.projectName);
     // Drop the fragment so a refresh after edits doesn't revert to the link.
@@ -2038,6 +2285,7 @@ if (typeof document !== "undefined") {
       delete elements.generateBtn.dataset.source;
       pendingGenerateSource = null;
       if (source !== "example") hideRemixBanner();
+      else if (projectStore.activeId) setActiveProject(null);
       handleGenerate(source);
     });
     elements.remixBtn.addEventListener("click", startRemix);
@@ -2047,8 +2295,12 @@ if (typeof document !== "undefined") {
       hideRemixBanner();
     });
     elements.saveProjectBtn.addEventListener("click", saveProject);
-    elements.loadProjectBtn.addEventListener("click", loadProject);
-    elements.clearProjectBtn.addEventListener("click", clearProject);
+    elements.loadProjectBtn.addEventListener("click", openProjectsDialog);
+    elements.clearProjectBtn.addEventListener("click", newProject);
+    elements.projectsDialogClose.addEventListener("click", closeProjectsDialog);
+    elements.projectsDialog.addEventListener("click", (event) => {
+      if (event.target === elements.projectsDialog) closeProjectsDialog();
+    });
     elements.copyAllBtn.addEventListener("click", copyFullBlueprint);
     elements.regenerateChapterTitlesBtn.addEventListener("click", regenerateChapterTitlesOnly);
     elements.shareLinkBtn.addEventListener("click", shareBlueprintLink);
@@ -2080,7 +2332,15 @@ if (typeof document !== "undefined") {
     renderProjectMemory();
     initSignup();
     initPricing();
-    loadFromShareHash();
+    readProjectStore();
+    // Reopen the last project unless a shared link takes priority.
+    const resumeId = projectStore.activeId;
+    if (!loadFromShareHash() && resumeId) {
+      const project = projectStore.projects[resumeId];
+      applyProjectState(project.state);
+      if (blueprint.length) showPlanSignup(normalizeBookType(project.state.input.bookType));
+    }
+    renderActiveProject();
     window.addEventListener("hashchange", loadFromShareHash);
   }
 

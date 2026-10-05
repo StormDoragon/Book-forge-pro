@@ -179,6 +179,63 @@ test("fiction titles never inline long fallback phrases", () => {
   });
 });
 
+function projectState(name, idea = "A heist in a floating city") {
+  return { input: baseInput({ projectName: name, bookIdea: idea }), blueprint: [{ title: "Logline", body: "x" }] };
+}
+
+test("project store saves new projects up to the free limit", () => {
+  let store = engine.emptyProjectStore();
+  for (let i = 0; i < engine.FREE_PROJECT_LIMIT; i += 1) {
+    const result = engine.saveToProjectStore({ ...store, activeId: null }, projectState(`Book ${i}`), { now: 1000 + i, salt: `s${i}` });
+    assert.strictEqual(result.status, "created");
+    store = result.store;
+  }
+  const blocked = engine.saveToProjectStore({ ...store, activeId: null }, projectState("One too many"), { now: 2000, salt: "x" });
+  assert.strictEqual(blocked.status, "limit");
+  assert.strictEqual(Object.keys(blocked.store.projects).length, engine.FREE_PROJECT_LIMIT, "limit must not save");
+});
+
+test("saving with an active project overwrites it, even at the limit", () => {
+  let store = engine.emptyProjectStore();
+  for (let i = 0; i < engine.FREE_PROJECT_LIMIT; i += 1) {
+    store = engine.saveToProjectStore({ ...store, activeId: null }, projectState(`Book ${i}`), { now: 1000 + i, salt: `s${i}` }).store;
+  }
+  const activeId = store.activeId;
+  const result = engine.saveToProjectStore(store, projectState("Renamed"), { now: 5000, salt: "z" });
+  assert.strictEqual(result.status, "updated");
+  assert.strictEqual(result.id, activeId);
+  assert.strictEqual(result.store.projects[activeId].name, "Renamed");
+  assert.strictEqual(Object.keys(result.store.projects).length, engine.FREE_PROJECT_LIMIT);
+});
+
+test("project list is newest first and delete clears the active id", () => {
+  let store = engine.emptyProjectStore();
+  store = engine.saveToProjectStore(store, projectState("Old"), { now: 1, salt: "a" }).store;
+  const oldId = store.activeId;
+  store = engine.saveToProjectStore({ ...store, activeId: null }, projectState("New"), { now: 2, salt: "b" }).store;
+  assert.deepStrictEqual(engine.listProjects(store).map((p) => p.name), ["New", "Old"]);
+  store = engine.deleteFromProjectStore({ ...store, activeId: oldId }, oldId);
+  assert.strictEqual(store.activeId, null);
+  assert.deepStrictEqual(engine.listProjects(store).map((p) => p.name), ["New"]);
+});
+
+test("project store migrates a legacy draft and survives corrupt data", () => {
+  const legacy = JSON.stringify(projectState("My Old Draft"));
+  const migrated = engine.parseProjectStore(null, legacy, 42);
+  assert.deepStrictEqual(engine.listProjects(migrated).map((p) => p.name), ["My Old Draft"]);
+  const corrupt = engine.parseProjectStore("{not json", null, 42);
+  assert.deepStrictEqual(corrupt.projects, {});
+  const junk = engine.parseProjectStore(JSON.stringify({
+    version: 1, activeId: "ghost", projects: { a: { id: "a", state: null }, b: projectState("x") }
+  }), null, 42);
+  assert.deepStrictEqual(junk.projects, {}, "malformed entries are dropped");
+  assert.strictEqual(junk.activeId, null, "an active id must point at a real project");
+  const store = engine.saveToProjectStore(engine.emptyProjectStore(), projectState("Keep"), { now: 7, salt: "k" }).store;
+  const roundTrip = engine.parseProjectStore(JSON.stringify(store), legacy, 99);
+  assert.deepStrictEqual(engine.listProjects(roundTrip).map((p) => p.name), ["Keep"], "an existing store ignores the legacy draft");
+  assert.strictEqual(roundTrip.activeId, store.activeId);
+});
+
 console.log(`\n${passed} checks passed.`);
 if (process.exitCode) {
   console.error("\nSome tests failed.");

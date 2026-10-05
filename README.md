@@ -15,7 +15,10 @@ It is designed to run fully offline in the browser with no API keys, backend, or
 - Chapter intelligence with story beats, unique chapter titles, and ending hooks
 - Depth levels: Quick, Professional, Publisher-Level
 - Blueprint Intelligence Score with strengths and fix suggestions
-- Project memory in localStorage (titles, chapter notes, progress, export history)
+- Saved projects in localStorage: My Projects lists, opens, and deletes them,
+  and the last open project resumes on reload (Free keeps 3; Pro will be
+  unlimited). A legacy single draft is migrated automatically
+- Project memory per project (titles, chapter notes, progress, export history)
 - Section tools: copy, regenerate, and refine (Professional / Cinematic / Shorter / Specific)
 - Non-blocking toast notifications instead of blocking alerts
 - Exports: Markdown, TXT, and PDF (print-optimized)

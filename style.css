@@ -1059,6 +1059,47 @@ select:focus {
 
 .footer-signup .signup-form { flex: 1 1 340px; max-width: 480px; }
 
+/* Saved projects */
+.active-project { margin: 0.35rem 0 0; font-size: 0.86rem; color: var(--text-faint); }
+.active-project strong { color: var(--accent); font-weight: 600; }
+
+.projects-dialog {
+  width: min(560px, calc(100vw - 2rem));
+  max-height: min(80vh, 640px);
+  padding: 1.3rem 1.4rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+
+.projects-dialog::backdrop { background: rgba(0, 0, 0, 0.55); backdrop-filter: blur(3px); }
+.projects-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+.projects-dialog-head h3 { margin: 0; font-size: 1.2rem; }
+.projects-dialog-sub { margin: 0.3rem 0 1rem; color: var(--text-faint); font-size: 0.85rem; }
+.projects-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; }
+
+.project-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.8rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
+.project-row.is-active { border-color: var(--brand); }
+.project-info { flex: 1 1 200px; min-width: 0; }
+.project-name { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.project-meta { margin: 0.15rem 0 0; color: var(--text-faint); font-size: 0.8rem; }
+.project-actions { display: flex; gap: 0.4rem; }
+.projects-empty { color: var(--text-soft); font-size: 0.92rem; }
+.projects-limit { margin: 1rem 0 0; color: var(--text-soft); font-size: 0.86rem; }
+.projects-limit a { color: var(--brand); }
+
 /* Pricing */
 .billing-toggle {
   display: flex;
@@ -1217,7 +1258,7 @@ select:focus {
   body { background: #fff !important; color: #111; }
 
   .site-nav, .hero, .workflow, .features, .pricing, .site-footer, .bg-orb, .skip-link,
-  .studio-head, .remix-banner, .signup-card, .layout > .intake, .module-actions, .share-actions, .project-memory-panel,
+  .studio-head, .remix-banner, .projects-dialog, .signup-card, .layout > .intake, .module-actions, .share-actions, .project-memory-panel,
   .module-button-row, .toast-container, .empty-state {
     display: none !important;
   }
