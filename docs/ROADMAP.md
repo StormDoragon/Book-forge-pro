@@ -117,7 +117,11 @@ Implementation (keeps the free tier backend-free):
       per-key rate limit, and streaming output.
 - [ ] AI deep-forge buttons on Logline, Blurb, and Chapter Outline (Pro).
 - [ ] DOCX export (Pro).
-- [ ] Multiple saved projects (the current storage holds one).
+- [x] Multiple saved projects: Save / My Projects / New Project, resume on
+      reload, legacy draft migration. Free keeps `FREE_PROJECT_LIMIT` (3)
+      projects; at the limit people can still overwrite or delete, so nothing
+      is locked away. "Try an example" and shared links detach from the open
+      project so they can't overwrite it.
 - [ ] Engine quality pass: more genre profiles and better name/place
       extraction. The free tier still has to impress.
 

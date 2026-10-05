@@ -43,4 +43,4 @@ testable. Add or update a test when you change engine behavior.
 - [ ] `node tests/engine.test.js` passes.
 - [ ] No debug logs or temporary files are committed.
 - [ ] UI remains usable on desktop and mobile.
-- [ ] Existing features still work: save/load, exports, section regeneration.
+- [ ] Existing features still work: saving and opening projects, exports, section regeneration.

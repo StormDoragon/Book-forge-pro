@@ -209,11 +209,12 @@
           <p class="eyebrow">The Studio</p>
           <h2 id="studio-title">Book Architect</h2>
           <p class="studio-sub">Turn your rough idea into a structured, publishing-ready blueprint.</p>
+          <p id="activeProjectLabel" class="active-project" aria-live="polite"></p>
         </div>
         <div class="header-actions">
-          <button id="saveProjectBtn" class="btn btn-secondary" type="button">Save Draft</button>
-          <button id="loadProjectBtn" class="btn btn-secondary" type="button">Load Draft</button>
-          <button id="clearProjectBtn" class="btn btn-ghost" type="button">Clear</button>
+          <button id="saveProjectBtn" class="btn btn-secondary" type="button">Save</button>
+          <button id="loadProjectBtn" class="btn btn-secondary" type="button" aria-haspopup="dialog">My Projects</button>
+          <button id="clearProjectBtn" class="btn btn-ghost" type="button">New Project</button>
         </div>
       </div>
 
@@ -461,6 +462,17 @@
     </aside>
     <p class="footer-legal">&copy; <span id="footerYear">2026</span> BookForge Pro &middot; Frontend-only &middot; MIT Licensed</p>
   </footer>
+
+  <!-- Saved projects -->
+  <dialog id="projectsDialog" class="projects-dialog" aria-labelledby="projectsDialogTitle">
+    <div class="projects-dialog-head">
+      <h3 id="projectsDialogTitle">My Projects</h3>
+      <button id="projectsDialogClose" class="icon-btn" type="button" aria-label="Close">✕</button>
+    </div>
+    <p class="projects-dialog-sub">Saved in this browser only. Nothing is uploaded.</p>
+    <ul id="projectsList" class="projects-list"></ul>
+    <p id="projectsLimitNote" class="projects-limit"></p>
+  </dialog>
 
   <!-- Output module template (consumed by the engine; do not change its structure) -->
   <template id="outputModuleTemplate">
