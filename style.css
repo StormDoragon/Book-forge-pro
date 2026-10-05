@@ -963,6 +963,9 @@ select:focus {
 }
 
 @media (max-width: 540px) {
+  .nav-inner { gap: 0.5rem; padding: 0.6rem 1rem; }
+  .nav-actions { gap: 0.35rem; margin-left: auto; }
+  .nav-actions .open-studio { padding-inline: 0.75rem; }
   .step-grid,
   .feature-grid { grid-template-columns: 1fr; }
   .hero-stats { gap: 1.2rem; }
@@ -978,4 +981,62 @@ select:focus {
     transition-duration: 0.001ms !important;
   }
   .reveal { opacity: 1; transform: none; }
+}
+
+/* Share bar */
+.share-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--ring), transparent);
+}
+
+.share-copy {
+  flex: 1 1 260px;
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text-soft);
+}
+
+.share-copy strong { color: var(--text); }
+
+/* Print / PDF export: only the blueprint itself, ink-friendly. */
+@media print {
+  :root, [data-theme="dark"], [data-theme="light"] {
+    --text: #111;
+    --text-soft: #333;
+    --text-faint: #555;
+    --border: #ccc;
+    --border-strong: #999;
+  }
+
+  body { background: #fff !important; color: #111; }
+
+  .site-nav, .hero, .workflow, .features, .site-footer, .bg-orb, .skip-link,
+  .studio-head, .layout > .intake, .module-actions, .share-actions, .project-memory-panel,
+  .module-button-row, .toast-container, .empty-state {
+    display: none !important;
+  }
+
+  .studio, .layout, .card, .outputs, .output-module {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .info-panel { border: 1px solid #ccc !important; background: none !important; margin-bottom: 12pt; }
+  .output-module { break-inside: avoid-page; margin-bottom: 14pt !important; }
+  .module-title { font-size: 14pt; margin: 0 0 4pt; }
+  .module-body { white-space: pre-wrap; font-size: 10.5pt; line-height: 1.45; }
 }

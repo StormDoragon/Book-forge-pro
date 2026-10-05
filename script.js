@@ -51,6 +51,12 @@ const TONES = [
   "Emotional"
 ];
 
+const DEPTH_LEVELS = [
+  "Quick Blueprint",
+  "Professional Blueprint",
+  "Publisher-Level Blueprint"
+];
+
 const STORAGE_KEY = "bookforge-pro-project-v2";
 
 /*
@@ -845,12 +851,25 @@ function buildMemoirEngine(input, concept, chapterCount, titleIdeas, seed) {
 function buildFictionTitles(input, concept, seed) {
   const w = concept.world;
   const noun = pick(w.profile.titleNouns, seed);
+  // settingTitle is "Avalon" or "the Village", and empty when no place was
+  // extracted. Never inline the long fallback setting phrase into a title.
+  const place = w.settingTitle;
+  if (!place) {
+    const second = pick(w.profile.titleNouns.slice(1), seed + 1) || noun;
+    return uniqueList([
+      `The ${w.objectShort}`,
+      `The Last ${noun}`,
+      `${w.objectShort} and ${second}`,
+      `What the ${second} Remembers`,
+      `After the ${noun}`
+    ]);
+  }
   return uniqueList([
-    `${w.objectCap} of ${w.settingCap}`,
+    `The ${w.objectShort} of ${place}`,
     `The ${w.profile.titleNouns[0]}`,
-    `Beneath ${w.settingCap}`,
+    `Beneath ${place}`,
     `The Last ${noun}`,
-    `${w.settingCap} Falls`
+    `When ${place} Falls`
   ]);
 }
 
@@ -1072,10 +1091,84 @@ function rewriteText(text, mode, concept) {
 }
 
 /* Export the pure engine for Node-based tests. */
+/* ------------------------------------------------------------------ */
+/* Share links                                                         */
+/* ------------------------------------------------------------------ */
+
+// The engine is deterministic, so a link only has to carry the input: the
+// recipient's browser rebuilds the identical blueprint. No server involved.
+const SHARE_VERSION = 1;
+const SHARE_FIELDS = {
+  n: "projectName",
+  i: "bookIdea",
+  g: "genre",
+  b: "bookType",
+  r: "targetReader",
+  t: "tone",
+  d: "depthLevel",
+  p: "positioning",
+  l: "length"
+};
+const SHARE_MAX_CHARS = 6000;
+
+function toBase64Url(text) {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function fromBase64Url(encoded) {
+  const padded = encoded.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((encoded.length + 3) % 4);
+  const binary = atob(padded);
+  const bytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function encodeShareState(input) {
+  const payload = { v: SHARE_VERSION };
+  Object.entries(SHARE_FIELDS).forEach(([key, field]) => {
+    if (input[field] !== undefined && input[field] !== "") payload[key] = input[field];
+  });
+  return toBase64Url(JSON.stringify(payload));
+}
+
+// Returns a sanitized input object, or null for anything malformed. Shared
+// links are untrusted, so only known fields and allowed select values pass.
+function decodeShareState(encoded) {
+  if (typeof encoded !== "string" || !encoded || encoded.length > SHARE_MAX_CHARS) return null;
+  let payload;
+  try {
+    payload = JSON.parse(fromBase64Url(encoded));
+  } catch (err) {
+    return null;
+  }
+  if (!payload || payload.v !== SHARE_VERSION || typeof payload.i !== "string") return null;
+
+  const input = {};
+  Object.entries(SHARE_FIELDS).forEach(([key, field]) => {
+    if (typeof payload[key] === "string") input[field] = sanitize(payload[key]).slice(0, 2000);
+  });
+  if (!input.bookIdea) return null;
+
+  const allowed = { genre: GENRES, bookType: BOOK_TYPES, tone: TONES, depthLevel: DEPTH_LEVELS };
+  Object.entries(allowed).forEach(([field, options]) => {
+    if (!options.includes(input[field])) input[field] = options[field === "depthLevel" ? 1 : 0];
+  });
+  const length = Number(payload.l);
+  input.length = Number.isFinite(length) ? Math.min(250000, Math.max(5000, Math.round(length))) : 60000;
+  input.projectName = input.projectName || "Untitled Project";
+  input.targetReader = input.targetReader || "A clearly defined niche reader";
+  input.positioning = input.positioning || "A unique angle with practical value";
+  return input;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     analyzeConcept,
     buildBlueprint,
+    encodeShareState,
+    decodeShareState,
     buildWorld,
     makeChapterTitles,
     normalizeBookType,
@@ -1084,7 +1177,8 @@ if (typeof module !== "undefined" && module.exports) {
     hashSeed,
     GENRES,
     BOOK_TYPES,
-    TONES
+    TONES,
+    DEPTH_LEVELS
   };
 }
 
@@ -1111,6 +1205,9 @@ if (typeof document !== "undefined") {
     exportMdBtn: document.getElementById("exportMdBtn"),
     exportTxtBtn: document.getElementById("exportTxtBtn"),
     regenerateChapterTitlesBtn: document.getElementById("regenerateChapterTitlesBtn"),
+    shareLinkBtn: document.getElementById("shareLinkBtn"),
+    shareCardBtn: document.getElementById("shareCardBtn"),
+    exportPdfBtn: document.getElementById("exportPdfBtn"),
     outputContainer: document.getElementById("outputContainer"),
     qualityPanel: document.getElementById("qualityPanel"),
     conceptPanel: document.getElementById("conceptPanel"),
@@ -1533,6 +1630,207 @@ if (typeof document !== "undefined") {
     toast("Blueprint generated.", "success");
   }
 
+
+  /* --- Sharing: links, social card, PDF --- */
+
+  const SHARE_HASH_PREFIX = "#b=";
+
+  function makeShareUrl(input) {
+    const base = `${location.origin}${location.pathname}`;
+    return `${base}${SHARE_HASH_PREFIX}${encodeShareState(input)}`;
+  }
+
+  async function shareBlueprintLink() {
+    if (!blueprint.length || !lastInput) {
+      toast("Generate a blueprint first.", "error");
+      return;
+    }
+    const url = makeShareUrl(lastInput);
+    const title = `${lastInput.projectName} | BookForge Pro`;
+    if (navigator.share && matchMedia("(pointer: coarse)").matches) {
+      try {
+        await navigator.share({ title, text: "I just forged my book's blueprint:", url });
+        return;
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast("Share link copied. Anyone who opens it sees this exact blueprint.", "success");
+    } catch (err) {
+      window.prompt("Copy your share link:", url);
+    }
+  }
+
+  function headlineModule(modules) {
+    return modules.find((mod) => /^(logline|reader promise|life question)$/i.test(mod.title)) ||
+      modules.find((mod) => !/title ideas|concept analyzer/i.test(mod.title));
+  }
+
+  function wrapLines(ctx, text, maxWidth, maxLines) {
+    const words = text.split(/\s+/);
+    const lines = [];
+    let line = "";
+    for (const word of words) {
+      const next = line ? `${line} ${word}` : word;
+      if (ctx.measureText(next).width > maxWidth && line) {
+        lines.push(line);
+        line = word;
+        if (lines.length === maxLines) break;
+      } else {
+        line = next;
+      }
+    }
+    if (lines.length < maxLines && line) lines.push(line);
+    if (lines.length === maxLines && words.join(" ").length > lines.join(" ").length) {
+      lines[maxLines - 1] = `${lines[maxLines - 1].replace(/[\s,.;:]+\S*$/, "")}…`;
+    }
+    return lines;
+  }
+
+  function drawShareCard() {
+    const W = 1200;
+    const H = 630;
+    const canvas = document.createElement("canvas");
+    canvas.width = W;
+    canvas.height = H;
+    const ctx = canvas.getContext("2d");
+
+    const bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, "#081a1f");
+    bg.addColorStop(1, "#14454a");
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    const glow = ctx.createRadialGradient(W * 0.85, H * 0.1, 10, W * 0.85, H * 0.1, 520);
+    glow.addColorStop(0, "rgba(25, 183, 166, 0.45)");
+    glow.addColorStop(1, "rgba(25, 183, 166, 0)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    const pad = 72;
+    ctx.textBaseline = "top";
+    ctx.fillStyle = "#19b7a6";
+    ctx.font = "600 26px 'Space Grotesk', system-ui, sans-serif";
+    ctx.fillText("◆ BookForge Pro", pad, pad);
+
+    const meta = `${lastInput.genre} · ${lastInput.bookType} · ${blueprint.length} modules`;
+    ctx.fillStyle = "#a9c6c2";
+    ctx.font = "500 24px 'Space Grotesk', system-ui, sans-serif";
+    ctx.fillText(meta.toUpperCase(), pad, pad + 70);
+
+    ctx.fillStyle = "#eaf4f1";
+    ctx.font = "600 64px 'IBM Plex Serif', Georgia, serif";
+    const titleLines = wrapLines(ctx, lastInput.projectName, W - pad * 2 - 180, 2);
+    titleLines.forEach((line, idx) => ctx.fillText(line, pad, pad + 112 + idx * 76));
+
+    const headline = headlineModule(blueprint);
+    if (headline) {
+      const text = headline.body.split("\n").find((l) => l.trim().length > 20) || headline.body;
+      ctx.fillStyle = "#d4e6e2";
+      ctx.font = "italic 30px 'IBM Plex Serif', Georgia, serif";
+      const top = pad + 128 + titleLines.length * 76;
+      wrapLines(ctx, text, W - pad * 2 - (lastScore ? 190 : 0), 5).forEach((line, idx) => ctx.fillText(line, pad, top + idx * 42));
+    }
+
+    if (lastScore) {
+      const cx = W - pad - 70;
+      const cy = pad + 150;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 70, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(240, 180, 41, 0.14)";
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = "#f0b429";
+      ctx.stroke();
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#eaf4f1";
+      ctx.font = "700 48px 'Space Grotesk', system-ui, sans-serif";
+      ctx.fillText(`${lastScore.score}`, cx, cy - 34);
+      ctx.fillStyle = "#a9c6c2";
+      ctx.font = "500 18px 'Space Grotesk', system-ui, sans-serif";
+      ctx.fillText("/10 SCORE", cx, cy + 20);
+      ctx.textAlign = "left";
+    }
+
+    ctx.fillStyle = "#f0b429";
+    ctx.fillRect(pad, H - pad - 4, 64, 4);
+    ctx.fillStyle = "#a9c6c2";
+    ctx.font = "500 24px 'Space Grotesk', system-ui, sans-serif";
+    ctx.fillText(`Forge your book's blueprint free · ${location.host || "bookforge"}`, pad + 84, H - pad - 16);
+    return canvas;
+  }
+
+  function downloadShareCard() {
+    if (!blueprint.length || !lastInput) {
+      toast("Generate a blueprint first.", "error");
+      return;
+    }
+    const canvas = drawShareCard();
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        toast("Could not render the share card.", "error");
+        return;
+      }
+      const filename = `${slugifyProjectName(lastInput.projectName)}-card.png`;
+      const file = typeof File === "function" ? new File([blob], filename, { type: "image/png" }) : null;
+      if (file && navigator.canShare && navigator.canShare({ files: [file] }) && matchMedia("(pointer: coarse)").matches) {
+        try {
+          await navigator.share({ files: [file], title: lastInput.projectName, url: makeShareUrl(lastInput) });
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
+        }
+      }
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      recordExport("Share card", filename);
+      renderProjectMemory();
+      toast("Share card saved. Post it with your share link.", "success");
+    }, "image/png");
+  }
+
+  function exportPdf() {
+    if (!blueprint.length) {
+      toast("Generate a blueprint first.", "error");
+      return;
+    }
+    recordExport("PDF", `${slugifyProjectName(collectInput().projectName)}.pdf`);
+    renderProjectMemory();
+    const heading = document.getElementById("outputs-title");
+    const previous = { title: document.title, heading: heading ? heading.textContent : "" };
+    document.title = collectInput().projectName;
+    if (heading) heading.textContent = `${collectInput().projectName}: Book Blueprint`;
+    window.addEventListener("afterprint", () => {
+      document.title = previous.title;
+      if (heading) heading.textContent = previous.heading;
+    }, { once: true });
+    window.print();
+  }
+
+  function loadFromShareHash() {
+    if (!location.hash.startsWith(SHARE_HASH_PREFIX)) return false;
+    const input = decodeShareState(location.hash.slice(SHARE_HASH_PREFIX.length));
+    if (!input) {
+      toast("That share link is incomplete or damaged.", "error");
+      return false;
+    }
+    applyInputState(input);
+    handleGenerate();
+    // Drop the fragment so a refresh after edits doesn't revert to the link.
+    history.replaceState(null, "", `${location.pathname}${location.search}#studio`);
+    const studio = document.getElementById("studio");
+    if (studio) studio.scrollIntoView();
+    toast("Shared blueprint loaded. Tweak it and make it yours.", "info");
+    return true;
+  }
+
   function init() {
     populateSelect(elements.genre, GENRES);
     populateSelect(elements.bookType, BOOK_TYPES);
@@ -1544,6 +1842,9 @@ if (typeof document !== "undefined") {
     elements.clearProjectBtn.addEventListener("click", clearProject);
     elements.copyAllBtn.addEventListener("click", copyFullBlueprint);
     elements.regenerateChapterTitlesBtn.addEventListener("click", regenerateChapterTitlesOnly);
+    elements.shareLinkBtn.addEventListener("click", shareBlueprintLink);
+    elements.shareCardBtn.addEventListener("click", downloadShareCard);
+    elements.exportPdfBtn.addEventListener("click", exportPdf);
 
     elements.exportMdBtn.addEventListener("click", () => {
       if (!blueprint.length) { toast("Generate a blueprint first.", "error"); return; }
@@ -1566,6 +1867,8 @@ if (typeof document !== "undefined") {
     });
 
     renderProjectMemory();
+    loadFromShareHash();
+    window.addEventListener("hashchange", loadFromShareHash);
   }
 
   init();

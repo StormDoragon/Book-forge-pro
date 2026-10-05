@@ -85,7 +85,9 @@
           }
         });
       },
-      { threshold: 0.12 }
+      // A pixel margin, not a ratio: a long generated blueprint makes the
+      // studio many screens tall, so a ratio threshold could never be met.
+      { threshold: 0, rootMargin: "0px 0px -80px 0px" }
     );
     revealEls.forEach((el) => observer.observe(el));
   }

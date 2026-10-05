@@ -18,7 +18,11 @@ It is designed to run fully offline in the browser with no API keys, backend, or
 - Project memory in localStorage (titles, chapter notes, progress, export history)
 - Section tools: copy, regenerate, and refine (Professional / Cinematic / Shorter / Specific)
 - Non-blocking toast notifications instead of blocking alerts
-- Exports: Markdown and TXT
+- Exports: Markdown, TXT, and PDF (print-optimized)
+- Share links: the URL fragment carries the input and the recipient's browser
+  rebuilds the identical blueprint. No server involved
+- Share cards: a 1200x630 PNG (title, logline, score) for social posts
+- Installable PWA that works offline
 - Deterministic output: the same idea always yields the same blueprint
 
 ## Core Workflow
@@ -83,6 +87,17 @@ python3 -m http.server 8081
 ```text
 http://localhost:8081
 ```
+
+## Deployment
+
+The site is fully static. `vercel.json` sets security headers (CSP,
+frame-deny, nosniff) and keeps `sw.js` uncached so updates roll out promptly.
+Any static host works; the service worker only registers over HTTPS.
+
+## Roadmap
+
+See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the goal, business model, and
+launch plan, and [`docs/LAUNCH_KIT.md`](docs/LAUNCH_KIT.md) for launch copy.
 
 ## Architecture
 

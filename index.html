@@ -6,6 +6,32 @@
   <title>BookForge Pro | Turn Rough Ideas Into Publishing-Ready Blueprints</title>
   <meta name="description" content="BookForge Pro is an offline book-planning studio that turns a plain-language idea into a structured, concept-driven manuscript blueprint. No login, no API keys." />
   <meta name="color-scheme" content="dark light" />
+  <meta name="theme-color" content="#081a1f" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="BookForge Pro" />
+  <meta property="og:title" content="BookForge Pro: turn a rough idea into a publishing-ready book blueprint" />
+  <meta property="og:description" content="Type your book idea. Get a logline, structure, chapter-by-chapter plan, and back-cover blurb in seconds. Free, private, no signup." />
+  <meta property="og:image" content="og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="BookForge Pro: your book idea, architected in seconds" />
+  <meta name="twitter:description" content="Logline, structure, chapter plan, and blurb from one paragraph. Free, private, no signup." />
+  <meta name="twitter:image" content="og-image.png" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "BookForge Pro",
+    "applicationCategory": "DesignApplication",
+    "operatingSystem": "Any (browser)",
+    "description": "An offline book-planning studio that turns a plain-language idea into a structured manuscript blueprint.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Serif:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
@@ -108,7 +134,7 @@
         <li class="step-card">
           <span class="step-num">4</span>
           <h3>Refine &amp; export</h3>
-          <p>Regenerate or refine any section, save your draft, and export Markdown or TXT.</p>
+          <p>Regenerate or refine any section, save your draft, export Markdown, TXT, or PDF, and share a link.</p>
         </li>
       </ol>
     </section>
@@ -243,7 +269,13 @@
             <button id="copyAllBtn" class="btn btn-secondary" type="button">Copy Full Blueprint</button>
             <button id="exportMdBtn" class="btn btn-secondary" type="button">Export Markdown</button>
             <button id="exportTxtBtn" class="btn btn-secondary" type="button">Export TXT</button>
+            <button id="exportPdfBtn" class="btn btn-secondary" type="button">Export PDF</button>
             <button id="regenerateChapterTitlesBtn" class="btn btn-secondary" type="button">Regenerate Chapter Titles</button>
+          </div>
+          <div class="share-actions" aria-label="Share your blueprint">
+            <p class="share-copy"><strong>Share it.</strong> Links rebuild your exact blueprint in anyone's browser. Nothing is uploaded.</p>
+            <button id="shareLinkBtn" class="btn btn-primary" type="button">Copy Share Link</button>
+            <button id="shareCardBtn" class="btn btn-secondary" type="button">Download Share Card</button>
           </div>
 
           <div id="outputContainer" class="output-container">
@@ -304,5 +336,10 @@
 
   <script src="script.js"></script>
   <script src="site.js"></script>
+  <script>
+    if ("serviceWorker" in navigator && location.protocol === "https:") {
+      window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+    }
+  </script>
 </body>
 </html>
