@@ -21,6 +21,7 @@ It is designed to run fully offline in the browser with no API keys, backend, or
 - Exports: Markdown, TXT, and PDF (print-optimized)
 - Share links: the URL fragment carries the input and the recipient's browser
   rebuilds the identical blueprint. No server involved
+- Remix banner: anyone opening a share link can remix it or start their own
 - Share cards: a 1200x630 PNG (title, logline, score) for social posts
 - Installable PWA that works offline
 - Deterministic output: the same idea always yields the same blueprint

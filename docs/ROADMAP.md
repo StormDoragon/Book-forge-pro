@@ -92,8 +92,11 @@ Implementation (keeps the free tier backend-free):
       public to sign in to Vercel until a custom domain is attached.
 - [ ] Email capture: "Get the 30-day writing plan for your blueprint" (Buttondown
       or ConvertKit). This builds the launch list.
-- [ ] A one-click "Remix this blueprint" banner on shared links, so every viewer
-      becomes a creator.
+- [x] "Remix this blueprint" banner on shared links, so every viewer
+      becomes a creator. Offers Remix (keep settings, rename to "(remix)") or
+      Start my own. The viewer's next blueprint is tracked as
+      `source: remix` or `share_fresh`, so share → creator conversion is
+      measurable.
 
 ### Phase 3: Monetize (Oct 13-24)
 
