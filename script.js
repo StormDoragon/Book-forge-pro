@@ -1208,6 +1208,11 @@ if (typeof document !== "undefined") {
     shareLinkBtn: document.getElementById("shareLinkBtn"),
     shareCardBtn: document.getElementById("shareCardBtn"),
     exportPdfBtn: document.getElementById("exportPdfBtn"),
+    remixBanner: document.getElementById("remixBanner"),
+    remixBannerName: document.getElementById("remixBannerName"),
+    remixBtn: document.getElementById("remixBtn"),
+    remixFreshBtn: document.getElementById("remixFreshBtn"),
+    remixDismissBtn: document.getElementById("remixDismissBtn"),
     outputContainer: document.getElementById("outputContainer"),
     qualityPanel: document.getElementById("qualityPanel"),
     conceptPanel: document.getElementById("conceptPanel"),
@@ -1224,6 +1229,9 @@ if (typeof document !== "undefined") {
   let lastConcept = null;
   let lastScore = null;
   let variationNonce = 0;
+  // Set by the remix banner so the visitor's next generate is attributed to
+  // the shared link that brought them here (the viral conversion).
+  let pendingGenerateSource = null;
   let projectMemory = {
     favoriteTitles: [],
     chapterNotes: {},
@@ -1589,6 +1597,7 @@ if (typeof document !== "undefined") {
     lastScore = null;
     projectMemory = { favoriteTitles: [], chapterNotes: {}, draftProgress: 0, exportHistory: [] };
     localStorage.removeItem(STORAGE_KEY);
+    hideRemixBanner();
     renderProjectMemory();
     toast("Workspace cleared.", "info");
   }
@@ -1852,12 +1861,54 @@ if (typeof document !== "undefined") {
     }
     applyInputState(input);
     handleGenerate("shared_link");
+    showRemixBanner(input.projectName);
     // Drop the fragment so a refresh after edits doesn't revert to the link.
     history.replaceState(null, "", `${location.pathname}${location.search}#studio`);
     const studio = document.getElementById("studio");
     if (studio) studio.scrollIntoView();
-    toast("Shared blueprint loaded. Tweak it and make it yours.", "info");
     return true;
+  }
+
+  /* --- Remix banner: turn every shared-link viewer into a creator --- */
+
+  function showRemixBanner(projectName) {
+    // Untrusted (from the link): textContent only, never innerHTML.
+    elements.remixBannerName.textContent = projectName;
+    elements.remixBanner.hidden = false;
+  }
+
+  function hideRemixBanner() {
+    elements.remixBanner.hidden = true;
+  }
+
+  function focusIdea() {
+    const idea = elements.bookIdea;
+    idea.scrollIntoView({ block: "center", behavior: "smooth" });
+    idea.focus({ preventScroll: true });
+    idea.setSelectionRange(idea.value.length, idea.value.length);
+  }
+
+  function startRemix() {
+    const name = sanitize(elements.projectName.value) || "Untitled Project";
+    if (!/\(remix\)$/.test(name)) elements.projectName.value = `${name} (remix)`;
+    pendingGenerateSource = "remix";
+    track("Remix Banner", { action: "remix" });
+    hideRemixBanner();
+    focusIdea();
+    toast("Change the idea, genre, or tone, then hit Generate.", "info");
+  }
+
+  function startFresh() {
+    // Clear the shared text fields only; the visitor's own saved draft and
+    // the select choices stay as they are.
+    [elements.projectName, elements.bookIdea, elements.targetReader, elements.positioning].forEach((el) => {
+      el.value = "";
+    });
+    pendingGenerateSource = "share_fresh";
+    track("Remix Banner", { action: "fresh" });
+    hideRemixBanner();
+    focusIdea();
+    toast("Describe your book in a sentence or two, then hit Generate.", "info");
   }
 
   function init() {
@@ -1867,9 +1918,17 @@ if (typeof document !== "undefined") {
 
     elements.generateBtn.addEventListener("click", () => {
       // site.js tags example runs so they aren't counted as real ideas.
-      const source = elements.generateBtn.dataset.source || "manual";
+      const source = elements.generateBtn.dataset.source || pendingGenerateSource || "manual";
       delete elements.generateBtn.dataset.source;
+      pendingGenerateSource = null;
+      if (source !== "example") hideRemixBanner();
       handleGenerate(source);
+    });
+    elements.remixBtn.addEventListener("click", startRemix);
+    elements.remixFreshBtn.addEventListener("click", startFresh);
+    elements.remixDismissBtn.addEventListener("click", () => {
+      track("Remix Banner", { action: "dismiss" });
+      hideRemixBanner();
     });
     elements.saveProjectBtn.addEventListener("click", saveProject);
     elements.loadProjectBtn.addEventListener("click", loadProject);
