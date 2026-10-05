@@ -1887,9 +1887,11 @@ if (typeof document !== "undefined") {
       form.action = action;
       form.addEventListener("submit", () => {
         const engineTag = form.querySelector(".signup-engine-tag");
+        const planTag = form.querySelector(".waitlist-plan-tag");
         track("Email Signup", {
           placement: form.dataset.placement,
-          engine: engineTag && !engineTag.disabled ? engineTag.value : "none"
+          engine: engineTag && !engineTag.disabled ? engineTag.value : "none",
+          plan: planTag ? planTag.value : "none"
         });
       });
     });
@@ -1904,6 +1906,83 @@ if (typeof document !== "undefined") {
       engineTag.disabled = false;
     }
     elements.planSignup.hidden = false;
+  }
+
+  /* --- Pricing --- */
+
+  // Checkout links come from <meta name="checkout-*"> tags. Until one is set,
+  // that plan shows "Coming soon" and its button joins the waitlist (or is
+  // disabled when Buttondown isn't configured either).
+  function readCheckoutUrl(name) {
+    const content = (document.querySelector(`meta[name="${name}"]`) || {}).content || "";
+    return /^https:\/\/\S+$/.test(content) ? content : "";
+  }
+
+  const CHECKOUT = {
+    pro: { monthly: readCheckoutUrl("checkout-pro-monthly"), yearly: readCheckoutUrl("checkout-pro-yearly") },
+    lifetime: { monthly: readCheckoutUrl("checkout-lifetime"), yearly: readCheckoutUrl("checkout-lifetime") }
+  };
+  const PLAN_LABELS = { pro: "Pro", lifetime: "Lifetime" };
+  let billing = "yearly";
+
+  function checkoutUrl(plan) {
+    return (CHECKOUT[plan] && CHECKOUT[plan][billing]) || "";
+  }
+
+  function renderPricing() {
+    document.querySelectorAll(".billing-option").forEach((option) => {
+      option.setAttribute("aria-checked", String(option.dataset.billing === billing));
+    });
+    document.querySelectorAll("#pricing [data-monthly]").forEach((el) => {
+      el.textContent = el.dataset[billing];
+    });
+    document.querySelectorAll(".price-cta").forEach((cta) => {
+      const plan = cta.dataset.plan;
+      const label = PLAN_LABELS[plan];
+      const card = cta.closest(".price-card");
+      const badge = card && card.querySelector(".price-badge");
+      const live = !!checkoutUrl(plan);
+      if (badge) badge.hidden = live;
+      cta.disabled = !live && !signupEnabled;
+      if (live) cta.textContent = plan === "lifetime" ? "Get Lifetime" : `Get Pro ${billing}`;
+      else if (signupEnabled) cta.textContent = `Join the ${label} waitlist`;
+      else cta.textContent = "Coming soon";
+    });
+  }
+
+  function openWaitlist(plan) {
+    const form = document.getElementById("waitlistForm");
+    if (!form) return;
+    form.querySelector(".waitlist-plan-tag").value = plan;
+    document.getElementById("waitlistTitle").textContent = `Join the ${PLAN_LABELS[plan]} waitlist.`;
+    form.hidden = false;
+    const email = form.querySelector('input[type="email"]');
+    email.scrollIntoView({ block: "center", behavior: "smooth" });
+    email.focus({ preventScroll: true });
+  }
+
+  function initPricing() {
+    if (!document.getElementById("pricing")) return;
+    document.querySelectorAll(".billing-option").forEach((option) => {
+      option.addEventListener("click", () => {
+        billing = option.dataset.billing;
+        renderPricing();
+      });
+    });
+    document.querySelectorAll(".price-cta").forEach((cta) => {
+      cta.addEventListener("click", () => {
+        const plan = cta.dataset.plan;
+        const url = checkoutUrl(plan);
+        if (url) {
+          track("Pricing CTA", { plan, billing, action: "checkout" });
+          window.open(url, "_blank", "noopener");
+        } else if (signupEnabled) {
+          track("Pricing CTA", { plan, billing, action: "waitlist" });
+          openWaitlist(plan);
+        }
+      });
+    });
+    renderPricing();
   }
 
   /* --- Remix banner: turn every shared-link viewer into a creator --- */
@@ -2000,6 +2079,7 @@ if (typeof document !== "undefined") {
 
     renderProjectMemory();
     initSignup();
+    initPricing();
     loadFromShareHash();
     window.addEventListener("hashchange", loadFromShareHash);
   }

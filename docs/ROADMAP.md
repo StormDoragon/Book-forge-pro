@@ -105,7 +105,14 @@ Implementation (keeps the free tier backend-free):
 
 ### Phase 3: Monetize (Oct 13-24)
 
-- [ ] Pricing section and Pro upgrade modal (checkout link set in one config constant).
+- [x] Pricing section (`#pricing`): Free / Pro / Lifetime with a monthly-yearly
+      toggle and a short FAQ. Until a checkout URL is set, Pro and Lifetime show
+      "Coming soon" and their buttons join a Buttondown waitlist (tags
+      `pro-waitlist` + plan). Tracked as `Pricing CTA {plan, billing, action}`.
+- [ ] **Set checkout URLs** in `index.html` (`checkout-pro-monthly`,
+      `checkout-pro-yearly`, `checkout-lifetime`) *only once Pro features ship*.
+      Needs a Lemon Squeezy or Stripe account.
+- [ ] Decide the refund policy and add it to the pricing FAQ.
 - [ ] `/api/forge` serverless function: Claude API proxy with license check,
       per-key rate limit, and streaming output.
 - [ ] AI deep-forge buttons on Logline, Blurb, and Chapter Outline (Pro).
