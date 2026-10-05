@@ -138,6 +138,47 @@ test("module titles are unique", () => {
   assert.strictEqual(new Set(titles).size, titles.length, "module titles must be unique");
 });
 
+test("share links round-trip to the identical blueprint", () => {
+  const input = baseInput({
+    projectName: "Café Ünïcode 🚀",
+    bookIdea: "A cartographer named Ilse maps a city that rewrites its streets every night."
+  });
+  const decoded = engine.decodeShareState(engine.encodeShareState(input));
+  assert.ok(decoded, "a freshly encoded link must decode");
+  assert.strictEqual(decoded.projectName, input.projectName);
+  assert.strictEqual(
+    JSON.stringify(engine.buildBlueprint(decoded).modules),
+    JSON.stringify(engine.buildBlueprint(input).modules),
+    "a shared link must rebuild the same blueprint"
+  );
+});
+
+test("share links are URL-safe", () => {
+  const encoded = engine.encodeShareState(baseInput({ bookIdea: "???>>> ~~~ <<< ///" }));
+  assert.ok(/^[A-Za-z0-9_-]+$/.test(encoded), `not URL-safe: ${encoded}`);
+});
+
+test("malformed or hostile share links are rejected or sanitized", () => {
+  assert.strictEqual(engine.decodeShareState(""), null);
+  assert.strictEqual(engine.decodeShareState("not-base64!!"), null);
+  assert.strictEqual(engine.decodeShareState("x".repeat(7000)), null);
+  const hostile = Buffer.from(JSON.stringify({
+    v: 1, i: "A heist", g: "<script>", t: "Bogus", d: "Infinite", l: 1e12
+  })).toString("base64url");
+  const decoded = engine.decodeShareState(hostile);
+  assert.ok(engine.GENRES.includes(decoded.genre), "genre must be a known option");
+  assert.ok(engine.TONES.includes(decoded.tone), "tone must be a known option");
+  assert.ok(engine.DEPTH_LEVELS.includes(decoded.depthLevel), "depth must be a known option");
+  assert.ok(decoded.length <= 250000, "length must be clamped");
+});
+
+test("fiction titles never inline long fallback phrases", () => {
+  const { titleIdeas } = engine.buildBlueprint(baseInput({ bookIdea: "a pilot finds a signal" }));
+  titleIdeas.forEach((title) => {
+    assert.ok(title.split(" ").length <= 6, `title too long: ${title}`);
+  });
+});
+
 console.log(`\n${passed} checks passed.`);
 if (process.exitCode) {
   console.error("\nSome tests failed.");
