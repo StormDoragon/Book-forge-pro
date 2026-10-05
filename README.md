@@ -94,6 +94,12 @@ The site is fully static. `vercel.json` sets security headers (CSP,
 frame-deny, nosniff) and keeps `sw.js` uncached so updates roll out promptly.
 Any static host works; the service worker only registers over HTTPS.
 
+Analytics use Vercel Web Analytics (cookieless), loaded from `index.html` on
+any host except localhost. Custom events go through `track()` in
+`script.js` and must only carry categories (engine, genre, format), never
+text the user typed. URL fragments are stripped because share links carry
+the user's idea there.
+
 ## Roadmap
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the goal, business model, and

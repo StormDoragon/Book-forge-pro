@@ -1,6 +1,6 @@
 # BookForge Pro: Goal and Plan
 
-_Last updated: 2026-10-05_
+_Last updated: 2026-10-05 (Phase 2 started)_
 
 ## The goal
 
@@ -76,12 +76,20 @@ Implementation (keeps the free tier backend-free):
 
 ### Phase 2: Ship (week of Oct 6)
 
+- [x] Production deployed from `main` (`book-forge-pro.vercel.app`).
 - [ ] **Pick and buy the domain** (needs you). Then set absolute `og:image`,
       `og:url`, and `<link rel="canonical">` in `index.html`, and add `sitemap.xml`.
-- [ ] **Deploy to Vercel** from `main` (needs you to approve the project).
-- [ ] Privacy-friendly analytics (Vercel Web Analytics or Plausible; no cookies)
-      with events for: generate, share link, share card, export, and `#b=` landings.
-      Without this, the viral loop can't be measured.
+- [x] Vercel Web Analytics (cookieless) wired up, with events:
+      `Blueprint Generated` (source: manual / example / shared_link, engine,
+      genre, depth), `Shared Link Opened` (valid), `Share Link` (method),
+      `Share Card` (method), and `Export` (format: md / txt / pdf / copy).
+      Events carry categories only, never the idea or project name, and URL
+      fragments are stripped before sending.
+- [ ] **Enable Web Analytics** in the Vercel dashboard (Project → Analytics →
+      Enable). Needs you; until then the script 404s harmlessly.
+- [ ] **Make production public**: deployment protection is currently
+      `all_except_custom_domains`, so `book-forge-pro.vercel.app` asks the
+      public to sign in to Vercel until a custom domain is attached.
 - [ ] Email capture: "Get the 30-day writing plan for your blueprint" (Buttondown
       or ConvertKit). This builds the launch list.
 - [ ] A one-click "Remix this blueprint" banner on shared links, so every viewer
