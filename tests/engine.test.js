@@ -236,6 +236,24 @@ test("project store migrates a legacy draft and survives corrupt data", () => {
   assert.strictEqual(roundTrip.activeId, store.activeId);
 });
 
+test("regenerating chapter titles keeps notes by chapter number", () => {
+  const old = { "1. Old A": "note one", "2. Old B": "note two", "3. Old C": "" };
+  const next = engine.reconcileChapterNotes(old, ["1. New A", "2. New B", "3. New C", "4. New D"], true);
+  assert.deepStrictEqual(Object.values(next), ["note one", "note two", "", ""]);
+  const full = engine.reconcileChapterNotes(old, ["1. New A", "2. Old B"], false);
+  assert.deepStrictEqual(Object.values(full), ["", "note two"], "a full re-generation only keeps identical titles");
+});
+
+test("a write built from a stale tab keeps projects saved by other tabs", () => {
+  const base = engine.saveToProjectStore(engine.emptyProjectStore(), projectState("Tab A"), { now: 1, salt: "a" }).store;
+  const other = engine.saveToProjectStore({ ...base, activeId: null }, projectState("Tab B"), { now: 2, salt: "b" }).store;
+  const fresh = engine.withActiveProject(other, base.activeId);
+  assert.strictEqual(fresh.activeId, base.activeId);
+  const saved = engine.saveToProjectStore(fresh, projectState("Tab A edited"), { now: 3, salt: "c" }).store;
+  assert.deepStrictEqual(engine.listProjects(saved).map((p) => p.name).sort(), ["Tab A edited", "Tab B"]);
+  assert.strictEqual(engine.withActiveProject(other, "gone").activeId, null);
+});
+
 console.log(`\n${passed} checks passed.`);
 if (process.exitCode) {
   console.error("\nSome tests failed.");

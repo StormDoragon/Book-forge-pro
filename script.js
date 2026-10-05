@@ -1249,6 +1249,28 @@ function saveToProjectStore(store, state, { now, salt, limit = FREE_PROJECT_LIMI
   return { store: { ...store, activeId: id, projects }, id, status: activeId ? "updated" : "created" };
 }
 
+// Carry this tab's active project over onto a freshly read store, so a write
+// only changes what this tab did and never replaces other tabs' projects.
+function withActiveProject(freshStore, activeId) {
+  return { ...freshStore, activeId: activeId && freshStore.projects[activeId] ? activeId : null };
+}
+
+// Chapter notes are keyed by the full title line, so regenerating titles used
+// to orphan every note. Match by exact line first, then by chapter number.
+function reconcileChapterNotes(oldNotes, lines, matchByNumber = true) {
+  const byNumber = {};
+  Object.entries(oldNotes || {}).forEach(([line, note]) => {
+    const m = line.match(/^(\d+)\.\s/);
+    if (matchByNumber && m && note && !(m[1] in byNumber)) byNumber[m[1]] = note;
+  });
+  const notes = {};
+  lines.forEach((line) => {
+    const m = line.match(/^(\d+)\.\s/);
+    notes[line] = (oldNotes && oldNotes[line]) || (m && byNumber[m[1]]) || "";
+  });
+  return notes;
+}
+
 function deleteFromProjectStore(store, id) {
   const projects = { ...store.projects };
   delete projects[id];
@@ -1266,6 +1288,8 @@ if (typeof module !== "undefined" && module.exports) {
     listProjects,
     saveToProjectStore,
     deleteFromProjectStore,
+    withActiveProject,
+    reconcileChapterNotes,
     FREE_PROJECT_LIMIT,
     buildWorld,
     makeChapterTitles,
@@ -1570,7 +1594,7 @@ if (typeof document !== "undefined") {
     });
 
     blueprint[chapterModuleIndex] = { ...module, body: updatedLines.join("\n") };
-    updateProjectMemoryAfterGeneration();
+    updateProjectMemoryAfterGeneration(true);
     renderProjectMemory();
     renderBlueprint(blueprint);
     toast("Chapter titles regenerated.", "success");
@@ -1640,7 +1664,7 @@ if (typeof document !== "undefined") {
 
   let projectStore = emptyProjectStore();
 
-  function readProjectStore() {
+  function readStoredProjects() {
     let raw = null;
     let legacy = null;
     try {
@@ -1649,7 +1673,25 @@ if (typeof document !== "undefined") {
     } catch (err) {
       /* storage blocked: work in memory only */
     }
-    projectStore = parseProjectStore(raw, legacy, Date.now());
+    return { raw, legacy, store: parseProjectStore(raw, legacy, Date.now()) };
+  }
+
+  // Other tabs may have saved since this tab last read. Re-read before every
+  // write so we never overwrite their projects with our stale copy.
+  function freshProjectStore() {
+    let stored;
+    try {
+      stored = readStoredProjects();
+    } catch (err) {
+      return projectStore;
+    }
+    if (!stored.raw && !stored.legacy) return projectStore;
+    return withActiveProject(stored.store, projectStore.activeId);
+  }
+
+  function readProjectStore() {
+    const { raw, legacy, store } = readStoredProjects();
+    projectStore = store;
     // Persist a migrated legacy draft so it isn't re-imported later.
     if (!raw && legacy && Object.keys(projectStore.projects).length) writeProjectStore();
   }
@@ -1665,7 +1707,7 @@ if (typeof document !== "undefined") {
   }
 
   function setActiveProject(id) {
-    projectStore = { ...projectStore, activeId: id };
+    projectStore = withActiveProject({ ...freshProjectStore(), activeId: id }, id);
     writeProjectStore();
     renderActiveProject();
   }
@@ -1696,6 +1738,7 @@ if (typeof document !== "undefined") {
   }
 
   function saveProject() {
+    projectStore = freshProjectStore();
     const result = saveToProjectStore(projectStore, currentProjectState(), {
       now: Date.now(),
       salt: Math.random().toString(36).slice(2)
@@ -1746,7 +1789,7 @@ if (typeof document !== "undefined") {
   function deleteProject(id) {
     const project = projectStore.projects[id];
     if (!project || !confirm(`Delete "${project.name}"? This can't be undone.`)) return;
-    projectStore = deleteFromProjectStore(projectStore, id);
+    projectStore = deleteFromProjectStore(freshProjectStore(), id);
     writeProjectStore();
     track("Project", { action: "delete" });
     renderActiveProject();
@@ -1863,13 +1906,13 @@ if (typeof document !== "undefined") {
       .catch(() => toast("Copy failed. Your browser blocked clipboard access.", "error"));
   }
 
-  function updateProjectMemoryAfterGeneration() {
+  // Only a title-only refresh keeps notes by chapter number; a full re-generation
+  // may tell a different story, so notes stay only on identical titles.
+  function updateProjectMemoryAfterGeneration(titlesOnly = false) {
     const chapterModule = detectChapterModule(blueprint);
     if (chapterModule) {
       const lines = extractChapterTitleLines(chapterModule.body).slice(0, 20);
-      const notes = {};
-      lines.forEach((line) => { notes[line] = projectMemory.chapterNotes[line] || ""; });
-      projectMemory.chapterNotes = notes;
+      projectMemory.chapterNotes = reconcileChapterNotes(projectMemory.chapterNotes, lines, titlesOnly);
     }
     projectMemory.draftProgress = Math.min(100, Math.round((blueprint.length / 20) * 100));
   }
