@@ -1012,6 +1012,51 @@ select:focus {
   .reveal { opacity: 1; transform: none; }
 }
 
+/* Email signup (Buttondown) */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.signup-card,
+.footer-signup {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--ring), transparent 70%), var(--surface);
+}
+
+.signup-card { margin-top: 1rem; padding: 1.2rem 1.3rem; }
+.signup-card[hidden], .footer-signup[hidden] { display: none; }
+.signup-card .eyebrow { margin: 0 0 0.2rem; }
+.signup-card h4, .footer-signup h4 { margin: 0; font-size: 1.1rem; }
+.signup-sub { margin: 0.35rem 0 0.9rem; color: var(--text-soft); font-size: 0.92rem; }
+.signup-fine { margin: 0.5rem 0 0; color: var(--text-faint); font-size: 0.8rem; }
+
+.signup-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.signup-field { flex: 1 1 220px; margin: 0; }
+
+.footer-signup {
+  max-width: 1200px;
+  margin: 1.4rem auto 0;
+  padding: 1.1rem 1.3rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.footer-signup .signup-form { flex: 1 1 340px; max-width: 480px; }
+
 /* Share bar */
 .share-actions {
   display: flex;
@@ -1047,7 +1092,7 @@ select:focus {
   body { background: #fff !important; color: #111; }
 
   .site-nav, .hero, .workflow, .features, .site-footer, .bg-orb, .skip-link,
-  .studio-head, .remix-banner, .layout > .intake, .module-actions, .share-actions, .project-memory-panel,
+  .studio-head, .remix-banner, .signup-card, .layout > .intake, .module-actions, .share-actions, .project-memory-panel,
   .module-button-row, .toast-container, .empty-state {
     display: none !important;
   }

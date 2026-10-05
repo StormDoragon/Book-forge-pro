@@ -101,6 +101,12 @@ any host except localhost. Custom events go through `track()` in
 text the user typed. URL fragments are stripped because share links carry
 the user's idea there.
 
+Email signup uses Buttondown's embed form (a plain form POST in a new tab, as
+Buttondown requires). Set the username in
+`<meta name="buttondown-username">` in `index.html`; the forms stay hidden
+until it is set. Only the email and category tags are sent. See
+[`docs/emails/30-day-writing-plan.md`](docs/emails/30-day-writing-plan.md).
+
 ## Roadmap
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the goal, business model, and

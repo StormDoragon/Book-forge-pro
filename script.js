@@ -1208,6 +1208,8 @@ if (typeof document !== "undefined") {
     shareLinkBtn: document.getElementById("shareLinkBtn"),
     shareCardBtn: document.getElementById("shareCardBtn"),
     exportPdfBtn: document.getElementById("exportPdfBtn"),
+    planSignup: document.getElementById("planSignup"),
+    footerSignup: document.getElementById("footerSignup"),
     remixBanner: document.getElementById("remixBanner"),
     remixBannerName: document.getElementById("remixBannerName"),
     remixBtn: document.getElementById("remixBtn"),
@@ -1653,6 +1655,7 @@ if (typeof document !== "undefined") {
     renderProjectMemory();
     renderBlueprint(blueprint);
     toast("Blueprint generated.", "success");
+    showPlanSignup(result.engineType);
     track("Blueprint Generated", {
       source,
       engine: result.engineType,
@@ -1869,6 +1872,40 @@ if (typeof document !== "undefined") {
     return true;
   }
 
+  /* --- Email signup (Buttondown) --- */
+
+  // Buttondown requires a plain form POST (no fetch) because subscribers may
+  // need to finish a CAPTCHA on its page; the form opens it in a new tab.
+  // Only the email and category tags are sent, never blueprint text.
+  const BUTTONDOWN_USERNAME = (document.querySelector('meta[name="buttondown-username"]') || {}).content || "";
+  const signupEnabled = /^[A-Za-z0-9_-]+$/.test(BUTTONDOWN_USERNAME);
+
+  function initSignup() {
+    if (!signupEnabled) return;
+    const action = `https://buttondown.com/api/emails/embed-subscribe/${BUTTONDOWN_USERNAME}`;
+    document.querySelectorAll(".signup-form").forEach((form) => {
+      form.action = action;
+      form.addEventListener("submit", () => {
+        const engineTag = form.querySelector(".signup-engine-tag");
+        track("Email Signup", {
+          placement: form.dataset.placement,
+          engine: engineTag && !engineTag.disabled ? engineTag.value : "none"
+        });
+      });
+    });
+    if (elements.footerSignup) elements.footerSignup.hidden = false;
+  }
+
+  function showPlanSignup(engineType) {
+    if (!signupEnabled || !elements.planSignup) return;
+    const engineTag = elements.planSignup.querySelector(".signup-engine-tag");
+    if (engineTag) {
+      engineTag.value = engineType;
+      engineTag.disabled = false;
+    }
+    elements.planSignup.hidden = false;
+  }
+
   /* --- Remix banner: turn every shared-link viewer into a creator --- */
 
   function showRemixBanner(projectName) {
@@ -1962,6 +1999,7 @@ if (typeof document !== "undefined") {
     });
 
     renderProjectMemory();
+    initSignup();
     loadFromShareHash();
     window.addEventListener("hashchange", loadFromShareHash);
   }

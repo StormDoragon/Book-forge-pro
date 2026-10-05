@@ -7,6 +7,8 @@
   <meta name="description" content="BookForge Pro is an offline book-planning studio that turns a plain-language idea into a structured, concept-driven manuscript blueprint. No login, no API keys." />
   <meta name="color-scheme" content="dark light" />
   <meta name="theme-color" content="#081a1f" />
+  <!-- Buttondown newsletter username. Signup forms stay hidden while empty. -->
+  <meta name="buttondown-username" content="" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="BookForge Pro" />
   <meta property="og:title" content="BookForge Pro: turn a rough idea into a publishing-ready book blueprint" />
@@ -313,6 +315,22 @@
               <p class="empty-hint">Fill in the book identity and press <strong>Generate Book Blueprint</strong>, or hit <strong>Try an example</strong> above.</p>
             </div>
           </div>
+
+          <aside id="planSignup" class="signup-card" aria-labelledby="planSignupTitle" hidden>
+            <p class="eyebrow">Now write it</p>
+            <h4 id="planSignupTitle">Get the free 30-day writing plan</h4>
+            <p class="signup-sub">A day-by-day plan that takes you from this blueprint to a finished first draft, sent to your inbox. Your blueprint stays in your browser; only your email is sent.</p>
+          <form class="signup-form" method="post" target="_blank" rel="noopener" data-placement="blueprint">
+            <input type="hidden" name="tag" value="bookforge" />
+            <input type="hidden" name="tag" value="" class="signup-engine-tag" disabled />
+            <label class="signup-field">
+              <span class="visually-hidden">Email address</span>
+              <input type="email" name="email" required autocomplete="email" placeholder="you@example.com" />
+            </label>
+            <button class="btn btn-primary" type="submit">Send me the plan</button>
+          </form>
+            <p class="signup-fine">Delivered by Buttondown, our newsletter provider. Unsubscribe anytime.</p>
+          </aside>
         </section>
       </div>
     </section>
@@ -332,6 +350,21 @@
         <a href="#top">Back to top</a>
       </nav>
     </div>
+    <aside id="footerSignup" class="footer-signup" aria-labelledby="footerSignupTitle" hidden>
+      <div>
+        <h4 id="footerSignupTitle">Writing tips and launch news</h4>
+        <p class="signup-fine">Occasional emails via Buttondown. Unsubscribe anytime.</p>
+      </div>
+      <form class="signup-form" method="post" target="_blank" rel="noopener" data-placement="footer">
+            <input type="hidden" name="tag" value="bookforge" />
+            <input type="hidden" name="tag" value="" class="signup-engine-tag" disabled />
+            <label class="signup-field">
+              <span class="visually-hidden">Email address</span>
+              <input type="email" name="email" required autocomplete="email" placeholder="you@example.com" />
+            </label>
+            <button class="btn btn-primary" type="submit">Subscribe</button>
+          </form>
+    </aside>
     <p class="footer-legal">&copy; <span id="footerYear">2026</span> BookForge Pro &middot; Frontend-only &middot; MIT Licensed</p>
   </footer>
 
