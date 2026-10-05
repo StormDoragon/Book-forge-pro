@@ -107,6 +107,11 @@ Buttondown requires). Set the username in
 until it is set. Only the email and category tags are sent. See
 [`docs/emails/30-day-writing-plan.md`](docs/emails/30-day-writing-plan.md).
 
+Pricing checkout links live in `<meta name="checkout-pro-monthly">`,
+`checkout-pro-yearly`, and `checkout-lifetime` in `index.html` (https only).
+While a plan's link is empty, it shows "Coming soon" and its button joins a
+Buttondown waitlist instead. Set them only once the Pro features exist.
+
 ## Roadmap
 
 See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the goal, business model, and

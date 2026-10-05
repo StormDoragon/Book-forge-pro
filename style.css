@@ -295,6 +295,7 @@ main {
 .hero,
 .workflow,
 .features,
+.pricing,
 .studio {
   max-width: 1200px;
   margin: 0 auto;
@@ -977,6 +978,7 @@ select:focus {
   .hero,
   .workflow,
   .features,
+  .pricing,
   .studio { padding: 2.6rem 1.1rem; }
 
   .field-grid { grid-template-columns: 1fr; }
@@ -1057,6 +1059,129 @@ select:focus {
 
 .footer-signup .signup-form { flex: 1 1 340px; max-width: 480px; }
 
+/* Pricing */
+.billing-toggle {
+  display: flex;
+  width: max-content;
+  margin: 0 auto 1.6rem;
+  padding: 0.3rem;
+  gap: 0.25rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.billing-option {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.5rem 1.1rem;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.billing-option[aria-checked="true"] { background: var(--brand); color: var(--brand-ink); }
+.billing-option:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+
+.save-pill {
+  margin-left: 0.3rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #1a1200;
+  font-size: 0.72rem;
+}
+
+.price-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.1rem;
+  align-items: stretch;
+}
+
+.price-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 1.6rem 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.price-card-featured {
+  border-color: var(--brand);
+  background: linear-gradient(160deg, var(--ring), transparent 60%), var(--surface);
+}
+
+.price-card h3 { margin: 0; font-size: 1.2rem; }
+
+.price-badge {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.2rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.price-badge[hidden] { display: none; }
+.price { display: flex; align-items: baseline; gap: 0.45rem; margin: 0.8rem 0 0.2rem; }
+.price-amount { font-family: "IBM Plex Serif", Georgia, serif; font-size: 2.6rem; font-weight: 600; }
+.price-period { color: var(--text-soft); }
+.price-note { margin: 0 0 1rem; color: var(--text-faint); font-size: 0.88rem; min-height: 1.3em; }
+
+.price-features {
+  flex: 1;
+  margin: 0 0 1.3rem;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+  align-content: start;
+}
+
+.price-features li { position: relative; padding-left: 1.4rem; color: var(--text-soft); font-size: 0.93rem; }
+.price-features li::before { content: "◆"; position: absolute; left: 0; color: var(--brand); font-size: 0.75rem; top: 0.2em; }
+.price-features strong { color: var(--text); }
+.price-cta[disabled] { opacity: 0.6; cursor: not-allowed; }
+
+.waitlist-form {
+  max-width: 720px;
+  margin: 1.4rem auto 0;
+  padding: 1rem 1.2rem;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius);
+  background: var(--surface);
+  align-items: center;
+}
+
+.waitlist-form[hidden] { display: none; }
+.waitlist-copy { flex: 1 1 100%; margin: 0 0 0.3rem; font-size: 0.9rem; color: var(--text-soft); }
+.waitlist-copy strong { color: var(--text); }
+
+.pricing-faq { max-width: 720px; margin: 2rem auto 0; display: grid; gap: 0.6rem; }
+
+.pricing-faq details {
+  padding: 0.85rem 1.1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.pricing-faq summary { cursor: pointer; font-weight: 600; }
+.pricing-faq details p { margin: 0.6rem 0 0; color: var(--text-soft); }
+
+@media (max-width: 980px) {
+  .price-grid { grid-template-columns: 1fr; max-width: 480px; margin: 0 auto; }
+}
+
 /* Share bar */
 .share-actions {
   display: flex;
@@ -1091,7 +1216,7 @@ select:focus {
 
   body { background: #fff !important; color: #111; }
 
-  .site-nav, .hero, .workflow, .features, .site-footer, .bg-orb, .skip-link,
+  .site-nav, .hero, .workflow, .features, .pricing, .site-footer, .bg-orb, .skip-link,
   .studio-head, .remix-banner, .signup-card, .layout > .intake, .module-actions, .share-actions, .project-memory-panel,
   .module-button-row, .toast-container, .empty-state {
     display: none !important;

@@ -9,6 +9,11 @@
   <meta name="theme-color" content="#081a1f" />
   <!-- Buttondown newsletter username. Signup forms stay hidden while empty. -->
   <meta name="buttondown-username" content="" />
+  <!-- Checkout URLs (https). While empty, Pro/Lifetime show "Coming soon" and
+       their buttons join a waitlist. Only set these once the features ship. -->
+  <meta name="checkout-pro-monthly" content="" />
+  <meta name="checkout-pro-yearly" content="" />
+  <meta name="checkout-lifetime" content="" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="BookForge Pro" />
   <meta property="og:title" content="BookForge Pro: turn a rough idea into a publishing-ready book blueprint" />
@@ -72,6 +77,7 @@
         <a href="#workflow">How it works</a>
         <a href="#features">Features</a>
         <a href="#studio">Studio</a>
+        <a href="#pricing">Pricing</a>
       </nav>
 
       <div class="nav-actions">
@@ -334,6 +340,93 @@
         </section>
       </div>
     </section>
+
+    <!-- Pricing -->
+    <section class="pricing reveal" id="pricing" aria-labelledby="pricing-title">
+      <div class="section-head">
+        <h2 id="pricing-title">Free to plan. Pro to write.</h2>
+        <p>The offline studio is free forever. Pro adds AI that writes the hard parts with you.</p>
+      </div>
+
+      <div class="billing-toggle" role="radiogroup" aria-label="Billing period">
+        <button type="button" role="radio" class="billing-option" data-billing="monthly" aria-checked="false">Monthly</button>
+        <button type="button" role="radio" class="billing-option" data-billing="yearly" aria-checked="true">Yearly <span class="save-pill">Save 45%</span></button>
+      </div>
+
+      <div class="price-grid">
+        <article class="price-card">
+          <h3>Free</h3>
+          <p class="price"><span class="price-amount">$0</span><span class="price-period">forever</span></p>
+          <p class="price-note">No account. Works offline.</p>
+          <ul class="price-features">
+            <li>Fiction, Nonfiction, and Memoir engines</li>
+            <li>Full blueprint with chapter-by-chapter beats</li>
+            <li>Share links, share cards, and remixing</li>
+            <li>Markdown, TXT, and PDF export</li>
+            <li>Your ideas never leave your browser</li>
+          </ul>
+          <a href="#studio" class="btn btn-secondary wide">Start building free</a>
+        </article>
+
+        <article class="price-card price-card-featured" data-plan="pro">
+          <span class="price-badge">Coming soon</span>
+          <h3>Pro</h3>
+          <p class="price">
+            <span class="price-amount" data-monthly="$9" data-yearly="$59">$59</span>
+            <span class="price-period" data-monthly="per month" data-yearly="per year">per year</span>
+          </p>
+          <p class="price-note" data-monthly="Cancel anytime." data-yearly="About $4.92 a month. Cancel anytime.">About $4.92 a month. Cancel anytime.</p>
+          <ul class="price-features">
+            <li><strong>Everything in Free</strong></li>
+            <li>AI deep-forge: real prose loglines, blurbs, and chapter beats</li>
+            <li>Query letter and synopsis generator</li>
+            <li>DOCX and Scrivener export</li>
+            <li>Unlimited saved projects</li>
+          </ul>
+          <button type="button" class="btn btn-primary wide price-cta" data-plan="pro">Join the Pro waitlist</button>
+        </article>
+
+        <article class="price-card" data-plan="lifetime">
+          <span class="price-badge">Coming soon</span>
+          <h3>Lifetime</h3>
+          <p class="price"><span class="price-amount">$79</span><span class="price-period">once</span></p>
+          <p class="price-note">Launch special for the first 500 writers.</p>
+          <ul class="price-features">
+            <li><strong>Everything in Pro, forever</strong></li>
+            <li>All future Pro features included</li>
+            <li>No subscription to manage</li>
+          </ul>
+          <button type="button" class="btn btn-secondary wide price-cta" data-plan="lifetime">Join the Lifetime waitlist</button>
+        </article>
+      </div>
+
+      <form id="waitlistForm" class="waitlist-form signup-form" method="post" target="_blank" rel="noopener" data-placement="pricing" hidden>
+        <input type="hidden" name="tag" value="bookforge" />
+        <input type="hidden" name="tag" value="pro-waitlist" />
+        <input type="hidden" name="tag" value="" class="waitlist-plan-tag" />
+        <p class="waitlist-copy"><strong id="waitlistTitle">Join the Pro waitlist.</strong> We'll email you once when it opens. Delivered by Buttondown; unsubscribe anytime.</p>
+        <label class="signup-field">
+          <span class="visually-hidden">Email address</span>
+          <input type="email" name="email" required autocomplete="email" placeholder="you@example.com" />
+        </label>
+        <button class="btn btn-primary" type="submit">Notify me</button>
+      </form>
+
+      <div class="pricing-faq">
+        <details>
+          <summary>Is the free version really free?</summary>
+          <p>Yes. The offline studio, share links, and exports are free forever with no account. Pro pays for the AI, which costs us money every time it runs.</p>
+        </details>
+        <details>
+          <summary>What will Pro send to the AI?</summary>
+          <p>Only the section you ask it to write and the blueprint details it needs, and only when you press an AI button. The free studio never sends your ideas anywhere.</p>
+        </details>
+        <details>
+          <summary>When does Pro open?</summary>
+          <p>Soon. Join the waitlist and we'll email you once, on the day it opens.</p>
+        </details>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -347,6 +440,7 @@
         <a href="#workflow">How it works</a>
         <a href="#features">Features</a>
         <a href="#studio">Studio</a>
+        <a href="#pricing">Pricing</a>
         <a href="#top">Back to top</a>
       </nav>
     </div>
