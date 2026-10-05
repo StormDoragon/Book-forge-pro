@@ -1205,7 +1205,7 @@ function parseProjectStore(raw, legacyRaw, now) {
           };
         }
       });
-      store.activeId = store.projects[parsed.activeId] ? parsed.activeId : null;
+      store.activeId = Object.prototype.hasOwnProperty.call(store.projects, parsed.activeId) ? parsed.activeId : null;
       return store;
     }
   } catch (err) {
@@ -1249,6 +1249,27 @@ function saveToProjectStore(store, state, { now, salt, limit = FREE_PROJECT_LIMI
   return { store: { ...store, activeId: id, projects }, id, status: activeId ? "updated" : "created" };
 }
 
+function emptyProjectMemory() {
+  return { favoriteTitles: [], chapterNotes: {}, draftProgress: 0, exportHistory: [] };
+}
+
+// Saved memory may be partial or malformed; always hand back a usable copy
+// that shares nothing with the stored object.
+function normalizeProjectMemory(raw) {
+  const memory = emptyProjectMemory();
+  if (!raw || typeof raw !== "object") return memory;
+  const strings = (list) => (Array.isArray(list) ? list.filter((item) => typeof item === "string") : []);
+  memory.favoriteTitles = strings(raw.favoriteTitles);
+  memory.exportHistory = strings(raw.exportHistory);
+  if (raw.chapterNotes && typeof raw.chapterNotes === "object" && !Array.isArray(raw.chapterNotes)) {
+    Object.entries(raw.chapterNotes).forEach(([line, note]) => {
+      if (typeof note === "string") memory.chapterNotes[line] = note;
+    });
+  }
+  memory.draftProgress = Math.min(100, Math.max(0, Number(raw.draftProgress) || 0));
+  return memory;
+}
+
 // Carry this tab's active project over onto a freshly read store, so a write
 // only changes what this tab did and never replaces other tabs' projects.
 function withActiveProject(freshStore, activeId) {
@@ -1289,6 +1310,7 @@ if (typeof module !== "undefined" && module.exports) {
     saveToProjectStore,
     deleteFromProjectStore,
     withActiveProject,
+    normalizeProjectMemory,
     reconcileChapterNotes,
     FREE_PROJECT_LIMIT,
     buildWorld,
@@ -1361,12 +1383,9 @@ if (typeof document !== "undefined") {
   // Set by the remix banner so the visitor's next generate is attributed to
   // the shared link that brought them here (the viral conversion).
   let pendingGenerateSource = null;
-  let projectMemory = {
-    favoriteTitles: [],
-    chapterNotes: {},
-    draftProgress: 0,
-    exportHistory: []
-  };
+  let projectMemory = emptyProjectMemory();
+  // Fingerprint of the workspace as last saved/opened/cleared, to detect edits.
+  let cleanFingerprint = "";
 
   /*
    * Analytics: categories only. Never send the idea, project name, or any
@@ -1733,8 +1752,36 @@ if (typeof document !== "undefined") {
     return new Date(timestamp).toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
+  const clone = (value) => (value === undefined ? value : JSON.parse(JSON.stringify(value)));
+
+  // `input` is what produced the saved blueprint; `draft` is the form as the
+  // user left it, which may have been edited since.
   function currentProjectState() {
-    return { input: collectInput(), blueprint, concept: lastConcept, quality: lastScore, projectMemory };
+    const draft = collectInput();
+    return clone({
+      input: blueprint.length && lastInput ? lastInput : draft,
+      draft,
+      blueprint,
+      concept: lastConcept,
+      quality: lastScore,
+      projectMemory
+    });
+  }
+
+  function workspaceFingerprint() {
+    return JSON.stringify([collectInput(), blueprint, projectMemory]);
+  }
+
+  function markClean() {
+    cleanFingerprint = workspaceFingerprint();
+  }
+
+  function isDirty() {
+    return workspaceFingerprint() !== cleanFingerprint;
+  }
+
+  function confirmDiscard(action) {
+    return !isDirty() || confirm(`You have unsaved changes. ${action} and discard them?`);
   }
 
   function saveProject() {
@@ -1755,28 +1802,31 @@ if (typeof document !== "undefined") {
       projectStore = previous;
       return;
     }
+    markClean();
     track("Project", { action: result.status === "created" ? "save_new" : "save" });
     renderActiveProject();
     toast(result.status === "created" ? "Saved as a new project." : "Project saved.", "success");
   }
 
-  function applyProjectState(state) {
-    applyInputState(state.input);
+  function applyProjectState(saved) {
+    const state = clone(saved);
+    applyInputState(state.draft && typeof state.draft === "object" ? state.draft : state.input);
     blueprint = Array.isArray(state.blueprint) ? state.blueprint : [];
-    lastInput = state.input;
+    lastInput = blueprint.length ? state.input : null;
     lastConcept = state.concept || null;
     lastScore = state.quality || null;
-    projectMemory = state.projectMemory || { favoriteTitles: [], chapterNotes: {}, draftProgress: 0, exportHistory: [] };
+    projectMemory = normalizeProjectMemory(state.projectMemory);
     renderConcept(lastConcept);
     renderQuality(lastScore);
     renderProjectMemory();
     elements.outputContainer.innerHTML = "";
     if (blueprint.length) renderBlueprint(blueprint);
+    markClean();
   }
 
   function openProject(id) {
     const project = projectStore.projects[id];
-    if (!project) return;
+    if (!project || !confirmDiscard(`Open "${project.name}"`)) return;
     applyProjectState(project.state);
     hideRemixBanner();
     if (blueprint.length) showPlanSignup(normalizeBookType(project.state.input.bookType));
@@ -1868,7 +1918,7 @@ if (typeof document !== "undefined") {
 
   // Clears the workspace for a fresh idea. Saved projects are untouched.
   function newProject() {
-    if (blueprint.length && !confirm("Start a new project? Unsaved changes in the workspace will be lost.")) return;
+    if (!confirmDiscard("Start a new project")) return;
     [elements.projectName, elements.bookIdea, elements.targetReader, elements.positioning].forEach((el) => {
       el.value = "";
     });
@@ -1884,11 +1934,12 @@ if (typeof document !== "undefined") {
     lastInput = null;
     lastConcept = null;
     lastScore = null;
-    projectMemory = { favoriteTitles: [], chapterNotes: {}, draftProgress: 0, exportHistory: [] };
+    projectMemory = emptyProjectMemory();
     hideRemixBanner();
     if (elements.planSignup) elements.planSignup.hidden = true;
     renderProjectMemory();
     setActiveProject(null);
+    markClean();
     elements.bookIdea.focus();
     toast("New project started. Your saved projects are still in My Projects.", "info");
   }
@@ -2151,8 +2202,13 @@ if (typeof document !== "undefined") {
       toast("That share link is incomplete or damaged.", "error");
       return false;
     }
+    if (!confirmDiscard("Open this shared blueprint")) {
+      history.replaceState(null, "", `${location.pathname}${location.search}#studio`);
+      return false;
+    }
     applyInputState(input);
     if (projectStore.activeId) setActiveProject(null);
+    projectMemory = emptyProjectMemory();
     handleGenerate("shared_link");
     showRemixBanner(input.projectName);
     // Drop the fragment so a refresh after edits doesn't revert to the link.
@@ -2376,6 +2432,13 @@ if (typeof document !== "undefined") {
     initSignup();
     initPricing();
     readProjectStore();
+    markClean();
+    window.addEventListener("beforeunload", (event) => {
+      if (isDirty()) {
+        event.preventDefault();
+        event.returnValue = "";
+      }
+    });
     // Reopen the last project unless a shared link takes priority.
     const resumeId = projectStore.activeId;
     if (!loadFromShareHash() && resumeId) {

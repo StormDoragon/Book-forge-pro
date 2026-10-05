@@ -254,6 +254,14 @@ test("a write built from a stale tab keeps projects saved by other tabs", () => 
   assert.strictEqual(engine.withActiveProject(other, "gone").activeId, null);
 });
 
+test("malformed saved memory is normalized and prototype ids are not active", () => {
+  const memory = engine.normalizeProjectMemory({ favoriteTitles: "x", chapterNotes: { "1. A": 5, "2. B": "ok" }, draftProgress: 400 });
+  assert.deepStrictEqual(memory, { favoriteTitles: [], chapterNotes: { "2. B": "ok" }, draftProgress: 100, exportHistory: [] });
+  assert.deepStrictEqual(engine.normalizeProjectMemory(null).chapterNotes, {});
+  const store = engine.parseProjectStore(JSON.stringify({ version: 1, activeId: "toString", projects: {} }), null, 1);
+  assert.strictEqual(store.activeId, null);
+});
+
 console.log(`\n${passed} checks passed.`);
 if (process.exitCode) {
   console.error("\nSome tests failed.");
