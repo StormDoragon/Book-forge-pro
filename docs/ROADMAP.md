@@ -90,8 +90,13 @@ Implementation (keeps the free tier backend-free):
 - [ ] **Make production public**: deployment protection is currently
       `all_except_custom_domains`, so `book-forge-pro.vercel.app` asks the
       public to sign in to Vercel until a custom domain is attached.
-- [ ] Email capture: "Get the 30-day writing plan for your blueprint" (Buttondown
-      or ConvertKit). This builds the launch list.
+- [x] Email capture via Buttondown: a "free 30-day writing plan" card after each
+      blueprint (tagged `bookforge` plus `fiction` / `nonfiction` / `memoir`) and a
+      footer signup (`bookforge` only). Email copy and setup steps are in
+      [`emails/30-day-writing-plan.md`](emails/30-day-writing-plan.md).
+- [ ] **Set the Buttondown username** in `index.html`
+      (`<meta name="buttondown-username">`) and create the welcome automation.
+      Needs you; the forms stay hidden until the username is set.
 - [x] "Remix this blueprint" banner on shared links, so every viewer
       becomes a creator. Offers Remix (keep settings, rename to "(remix)") or
       Start my own. The viewer's next blueprint is tracked as
