@@ -262,6 +262,20 @@ test("malformed saved memory is normalized and prototype ids are not active", ()
   assert.strictEqual(store.activeId, null);
 });
 
+test("share links are validated before they are offered", () => {
+  const ok = engine.prepareShare(baseInput({ bookIdea: "A cartographer named Ilse maps a changing city." }));
+  assert.ok(ok.ok && engine.decodeShareState(ok.encoded));
+  const long = engine.prepareShare(baseInput({ bookIdea: "a".repeat(engine.SHARE_FIELD_MAX + 25) }));
+  assert.strictEqual(long.ok, false, "text the decoder would truncate must be refused");
+  const huge = engine.prepareShare(baseInput({
+    projectName: "é".repeat(engine.SHARE_FIELD_MAX), bookIdea: "é".repeat(engine.SHARE_FIELD_MAX),
+    targetReader: "é".repeat(engine.SHARE_FIELD_MAX), positioning: "é".repeat(engine.SHARE_FIELD_MAX)
+  }));
+  assert.strictEqual(huge.ok, false, "links the decoder would reject must be refused");
+  const edge = engine.prepareShare(baseInput({ bookIdea: "x".repeat(engine.SHARE_FIELD_MAX) }));
+  assert.ok(edge.ok && engine.decodeShareState(edge.encoded).bookIdea.length === engine.SHARE_FIELD_MAX);
+});
+
 console.log(`\n${passed} checks passed.`);
 if (process.exitCode) {
   console.error("\nSome tests failed.");

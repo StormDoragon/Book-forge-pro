@@ -1114,6 +1114,9 @@ const SHARE_FIELDS = {
   l: "length"
 };
 const SHARE_MAX_CHARS = 6000;
+// One limit for the form, the encoder and the decoder, so nothing is truncated.
+const SHARE_FIELD_MAX = 2000;
+const SHARE_TEXT_FIELDS = ["projectName", "bookIdea", "targetReader", "positioning"];
 
 function toBase64Url(text) {
   const bytes = new TextEncoder().encode(text);
@@ -1137,6 +1140,23 @@ function encodeShareState(input) {
   return toBase64Url(JSON.stringify(payload));
 }
 
+// Encodes for sharing only if the decoder will rebuild exactly the same input.
+// Returns { ok: true, encoded } or { ok: false, reason }.
+function prepareShare(input) {
+  const tooLong = SHARE_TEXT_FIELDS.find((field) => typeof input[field] === "string" && input[field].length > SHARE_FIELD_MAX);
+  if (tooLong) {
+    return { ok: false, reason: `Shorten the ${tooLong.replace(/([A-Z])/g, " $1").toLowerCase()} to ${SHARE_FIELD_MAX} characters or fewer to share it.` };
+  }
+  const encoded = encodeShareState(input);
+  if (encoded.length > SHARE_MAX_CHARS) {
+    return { ok: false, reason: "This project is too large for a share link. Shorten the idea or other text fields." };
+  }
+  const decoded = decodeShareState(encoded);
+  const same = decoded && SHARE_TEXT_FIELDS.every((field) => !input[field] || decoded[field] === input[field]);
+  if (!same) return { ok: false, reason: "This project can't be shared as a link without changing its text." };
+  return { ok: true, encoded };
+}
+
 // Returns a sanitized input object, or null for anything malformed. Shared
 // links are untrusted, so only known fields and allowed select values pass.
 function decodeShareState(encoded) {
@@ -1151,7 +1171,7 @@ function decodeShareState(encoded) {
 
   const input = {};
   Object.entries(SHARE_FIELDS).forEach(([key, field]) => {
-    if (typeof payload[key] === "string") input[field] = sanitize(payload[key]).slice(0, 2000);
+    if (typeof payload[key] === "string") input[field] = sanitize(payload[key]).slice(0, SHARE_FIELD_MAX);
   });
   if (!input.bookIdea) return null;
 
@@ -1304,6 +1324,8 @@ if (typeof module !== "undefined" && module.exports) {
     buildBlueprint,
     encodeShareState,
     decodeShareState,
+    prepareShare,
+    SHARE_FIELD_MAX,
     emptyProjectStore,
     parseProjectStore,
     listProjects,
@@ -2009,9 +2031,24 @@ if (typeof document !== "undefined") {
 
   const SHARE_HASH_PREFIX = "#b=";
 
+  // Returns null (after telling the user why) when the link can't carry the input.
   function makeShareUrl(input) {
-    const base = `${location.origin}${location.pathname}`;
-    return `${base}${SHARE_HASH_PREFIX}${encodeShareState(input)}`;
+    const prepared = prepareShare(input);
+    if (!prepared.ok) {
+      toast(prepared.reason, "error");
+      return null;
+    }
+    return `${location.origin}${location.pathname}${SHARE_HASH_PREFIX}${prepared.encoded}`;
+  }
+
+  // Links carry only the inputs, so edits made after generating (refined
+  // sections, regenerated chapter titles) are not part of what a recipient sees.
+  function hasEditsBeyondInputs() {
+    try {
+      return JSON.stringify(buildBlueprint(lastInput).modules) !== JSON.stringify(blueprint);
+    } catch (err) {
+      return false;
+    }
   }
 
   async function shareBlueprintLink() {
@@ -2020,6 +2057,8 @@ if (typeof document !== "undefined") {
       return;
     }
     const url = makeShareUrl(lastInput);
+    if (!url) return;
+    const edited = hasEditsBeyondInputs();
     const title = `${lastInput.projectName} | BookForge Pro`;
     if (navigator.share && matchMedia("(pointer: coarse)").matches) {
       try {
@@ -2033,7 +2072,12 @@ if (typeof document !== "undefined") {
     try {
       await navigator.clipboard.writeText(url);
       track("Share Link", { method: "clipboard" });
-      toast("Share link copied. Anyone who opens it sees this exact blueprint.", "success");
+      toast(
+        edited
+          ? "Link copied. It rebuilds the blueprint from your inputs; your section refinements and chapter title changes are not included."
+          : "Link copied. Anyone who opens it gets the same blueprint.",
+        edited ? "info" : "success"
+      );
     } catch (err) {
       window.prompt("Copy your share link:", url);
       track("Share Link", { method: "prompt" });
@@ -2153,7 +2197,8 @@ if (typeof document !== "undefined") {
       const file = typeof File === "function" ? new File([blob], filename, { type: "image/png" }) : null;
       if (file && navigator.canShare && navigator.canShare({ files: [file] }) && matchMedia("(pointer: coarse)").matches) {
         try {
-          await navigator.share({ files: [file], title: lastInput.projectName, url: makeShareUrl(lastInput) });
+          const cardUrl = makeShareUrl(lastInput);
+          await navigator.share({ files: [file], title: lastInput.projectName, ...(cardUrl ? { url: cardUrl } : {}) });
           track("Share Card", { method: "native" });
           return;
         } catch (err) {
@@ -2429,6 +2474,7 @@ if (typeof document !== "undefined") {
     });
 
     renderProjectMemory();
+    SHARE_TEXT_FIELDS.forEach((field) => { if (elements[field]) elements[field].maxLength = SHARE_FIELD_MAX; });
     initSignup();
     initPricing();
     readProjectStore();
