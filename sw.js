@@ -1,9 +1,11 @@
 /*
  * sw.js - offline support. Network-first for pages and scripts so a deploy
  * is picked up on the next visit, falling back to the cache when offline.
- * Bump CACHE_VERSION when the asset list changes.
+ * Bump CACHE_VERSION when the asset list changes. Only caches that start with
+ * CACHE_PREFIX are ever deleted, since other apps may share this origin.
  */
-const CACHE_VERSION = "bookforge-v1";
+const CACHE_PREFIX = "bookforge-";
+const CACHE_VERSION = `${CACHE_PREFIX}v2`;
 const ASSETS = [
   "./",
   "index.html",
@@ -24,7 +26,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((key) => key !== CACHE_VERSION).map((key) => caches.delete(key))))
+      Promise.all(keys.filter((key) => key.startsWith(CACHE_PREFIX) && key !== CACHE_VERSION).map((key) => caches.delete(key))))
   );
   self.clients.claim();
 });
@@ -41,6 +43,11 @@ self.addEventListener("fetch", (event) => {
         }
         return response;
       })
-      .catch(() => caches.match(request, { ignoreSearch: true }).then((hit) => hit || caches.match("index.html")))
+      .catch(() => caches.match(request, { ignoreSearch: true }).then((hit) => {
+        if (hit) return hit;
+        // Only page loads fall back to the app shell; a missing script or
+        // image must fail rather than be answered with HTML.
+        return request.mode === "navigate" ? caches.match("index.html") : Response.error();
+      }))
   );
 });

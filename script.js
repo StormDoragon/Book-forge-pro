@@ -1283,6 +1283,42 @@ function isProjectState(state) {
   return !!state && typeof state === "object" && !!state.input && typeof state.input === "object";
 }
 
+const INPUT_TEXT_FIELDS = ["projectName", "bookIdea", "genre", "bookType", "targetReader", "tone", "depthLevel", "positioning"];
+
+function normalizeSavedInput(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const input = {};
+  INPUT_TEXT_FIELDS.forEach((field) => { input[field] = typeof raw[field] === "string" ? raw[field] : ""; });
+  input.length = Number.isFinite(Number(raw.length)) && Number(raw.length) > 0 ? Number(raw.length) : 60000;
+  return input;
+}
+
+// Rebuild a saved project from only the parts that are well formed, so one bad
+// field can't crash restoration. Derived parts (concept, quality) are
+// recomputed from the blueprint's input (the concept always, quality when malformed).
+function normalizeProjectState(state) {
+  if (!isProjectState(state)) return null;
+  const input = normalizeSavedInput(state.input);
+  if (!input) return null;
+  const blueprint = (Array.isArray(state.blueprint) ? state.blueprint : [])
+    .filter((mod) => mod && typeof mod.title === "string" && typeof mod.body === "string")
+    .map((mod) => ({ title: mod.title, body: mod.body }));
+  const draft = normalizeSavedInput(state.draft);
+
+  const strings = (list) => Array.isArray(list) && list.every((item) => typeof item === "string");
+  const q = state.quality;
+  const qualityOk = !!q && typeof q === "object" && Number.isFinite(q.score) && strings(q.strengths) && strings(q.suggestions);
+
+  let concept = null;
+  let quality = null;
+  if (blueprint.length) {
+    // The concept is deterministic in the input, so rebuild it rather than trust stored fields.
+    concept = analyzeConcept(input.bookIdea, input);
+    quality = qualityOk ? q : buildQualityReport(blueprint, input, normalizeBookType(input.bookType), concept);
+  }
+  return { input, draft, blueprint, concept, quality, projectMemory: normalizeProjectMemory(state.projectMemory) };
+}
+
 function projectName(state) {
   const name = isProjectState(state) && typeof state.input.projectName === "string" ? state.input.projectName.trim() : "";
   return name || "Untitled Project";
@@ -1300,12 +1336,13 @@ function parseProjectStore(raw, legacyRaw, now) {
     const parsed = raw ? JSON.parse(raw) : null;
     if (parsed && parsed.version === 1 && parsed.projects && typeof parsed.projects === "object") {
       Object.values(parsed.projects).forEach((project) => {
-        if (project && typeof project.id === "string" && isProjectState(project.state)) {
+        const state = project && typeof project.id === "string" ? normalizeProjectState(project.state) : null;
+        if (state) {
           store.projects[project.id] = {
             id: project.id,
-            name: projectName(project.state),
+            name: projectName(state),
             updatedAt: Number(project.updatedAt) || 0,
-            state: project.state
+            state
           };
         }
       });
@@ -1317,9 +1354,10 @@ function parseProjectStore(raw, legacyRaw, now) {
   }
   try {
     const legacy = legacyRaw ? JSON.parse(legacyRaw) : null;
-    if (isProjectState(legacy)) {
+    const state = normalizeProjectState(legacy);
+    if (state) {
       const id = makeProjectId(now, "legacy");
-      store.projects[id] = { id, name: projectName(legacy), updatedAt: now, state: legacy };
+      store.projects[id] = { id, name: projectName(state), updatedAt: now, state };
     }
   } catch (err) {
     /* unreadable legacy draft: start empty */
@@ -1412,6 +1450,7 @@ if (typeof module !== "undefined" && module.exports) {
     SHARE_FIELD_MAX,
     emptyProjectStore,
     parseProjectStore,
+    normalizeProjectState,
     listProjects,
     saveToProjectStore,
     deleteFromProjectStore,

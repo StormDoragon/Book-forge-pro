@@ -313,6 +313,62 @@ test("entities and signals come from sentence structure, not word order", () => 
   assert.strictEqual(world("A baker named Ilse in Lyon. Her sister's life is at stake.").stakes, "Her sister's life");
 });
 
+test("nested corruption in saved projects is repaired, not crashed on", () => {
+  const raw = JSON.stringify({
+    version: 1, activeId: "a",
+    projects: {
+      a: { id: "a", updatedAt: 1, state: { input: baseInput({ projectName: "Keep", bookIdea: "A heist in a floating city" }),
+        blueprint: [{ title: "Logline", body: "x" }, null, { title: 5 }], concept: { detectedElements: 3 }, quality: "bad", projectMemory: {} } },
+      b: { id: "b", state: { input: [] } },
+      c: { id: "c", state: { input: baseInput({}), blueprint: "nope", concept: null } }
+    }
+  });
+  const store = engine.parseProjectStore(raw, null, 5);
+  assert.deepStrictEqual(Object.keys(store.projects).sort(), ["a", "c"], "an unusable record is dropped, the rest survive");
+  const a = store.projects.a.state;
+  assert.deepStrictEqual(a.blueprint, [{ title: "Logline", body: "x" }]);
+  assert.ok(Array.isArray(a.concept.detectedElements) && a.concept.world, "concept is rebuilt");
+  assert.ok(Number.isFinite(a.quality.score), "quality is rebuilt");
+  assert.deepStrictEqual(a.projectMemory.favoriteTitles, []);
+  assert.strictEqual(store.projects.c.state.concept, null);
+});
+
+test("service worker only deletes its own caches and only shells navigations", async () => {
+  const vm = require("vm");
+  const fs = require("fs");
+  const listeners = {};
+  const deleted = [];
+  const cacheStore = { "bookforge-v1": {}, "bookforge-v2": {}, "other-app-cache": {} };
+  const shell = { shell: true };
+  const sandbox = {
+    self: { addEventListener: (type, fn) => { listeners[type] = fn; }, skipWaiting() {}, clients: { claim() {} } },
+    location: { origin: "https://x.test" },
+    Response: { error: () => ({ error: true }) },
+    caches: {
+      keys: async () => Object.keys(cacheStore),
+      delete: async (key) => { deleted.push(key); return true; },
+      open: async () => ({ addAll: async () => {}, put: async () => {} }),
+      match: async (req) => (req === "index.html" ? shell : undefined)
+    },
+    fetch: async () => { throw new Error("offline"); },
+    URL
+  };
+  vm.runInNewContext(fs.readFileSync(require("path").join(__dirname, "../sw.js"), "utf8"), sandbox);
+  let activation;
+  listeners.activate({ waitUntil: (p) => { activation = p; } });
+  await activation;
+  assert.deepStrictEqual(deleted, ["bookforge-v1"], "other apps' caches are kept");
+  const respond = async (request) => {
+    let result;
+    listeners.fetch({ request, respondWith: (p) => { result = p; } });
+    return result;
+  };
+  const page = await respond({ method: "GET", url: "https://x.test/", mode: "navigate" });
+  assert.strictEqual(page, shell, "offline page loads get the app shell");
+  const script = await respond({ method: "GET", url: "https://x.test/missing.js", mode: "no-cors" });
+  assert.strictEqual(script.error, true, "a missing script must fail, not return HTML");
+});
+
 console.log(`\n${passed} checks passed.`);
 if (process.exitCode) {
   console.error("\nSome tests failed.");
