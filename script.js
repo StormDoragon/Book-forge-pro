@@ -2541,6 +2541,15 @@ if (typeof document !== "undefined") {
     toast("Describe your book in a sentence or two, then hit Generate.", "info");
   }
 
+  // site.js calls this before filling the form with the demo idea, so the demo
+  // asks before discarding unsaved work and never inherits another project's memory.
+  window.bookforgeBeforeExample = () => {
+    if (!confirmDiscard("Load the example")) return false;
+    projectMemory = emptyProjectMemory();
+    renderProjectMemory();
+    return true;
+  };
+
   function init() {
     populateSelect(elements.genre, GENRES);
     populateSelect(elements.bookType, BOOK_TYPES);

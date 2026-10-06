@@ -60,7 +60,8 @@ Implementation (keeps the free tier backend-free):
 ### Phase 1: Product-ready (done in this branch)
 
 - [x] Shareable blueprint links (`#b=...`). The engine is deterministic, so the
-      link rebuilds the exact blueprint in the recipient's browser. Untrusted input is
+      link rebuilds a blueprint from the sender's inputs in the recipient's browser
+      (section refinements are not included). Untrusted input is
       sanitized and covered by tests.
 - [x] Share Card: a 1200x630 PNG with title, logline, and score, built for
       X/Threads/Instagram/BookTok. Uses the native share sheet on mobile.

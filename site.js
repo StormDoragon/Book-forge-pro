@@ -148,6 +148,7 @@
 
   if (tryExampleBtn) {
     tryExampleBtn.addEventListener("click", () => {
+      if (typeof window.bookforgeBeforeExample === "function" && !window.bookforgeBeforeExample()) return;
       Object.keys(EXAMPLE).forEach((id) => setField(id, EXAMPLE[id]));
       const studio = document.getElementById("studio");
       if (studio) studio.scrollIntoView({ behavior: prefersReducedMotion ? "auto" : "smooth" });
