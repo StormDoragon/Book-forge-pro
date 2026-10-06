@@ -298,13 +298,38 @@ function findFirstMatch(idea, list) {
   return "";
 }
 
+const LEXICON_WORDS = new Set(
+  [ROLE_WORDS, SETTING_WORDS, OBJECT_WORDS, FORCE_WORDS].flat().map((w) => w.toLowerCase())
+);
+
 function extractProperNouns(idea) {
   const matches = idea.match(/\b[A-Z][a-zA-Z]+\b/g) || [];
   return uniqueList(
     matches
       .map((w) => w.trim())
-      .filter((w) => w.length > 2 && !NON_NAME_WORDS.has(w.toLowerCase()))
+      .filter((w) => w.length > 2 && !NON_NAME_WORDS.has(w.toLowerCase()) && !LEXICON_WORDS.has(w.toLowerCase()))
   ).slice(0, 6);
+}
+
+// Resolve who the protagonist is and where it happens from sentence structure
+// ("a detective named Mara", "Detective Mara", "in London") before falling back
+// to capitalized words. A lone unexplained name is never promoted to a place.
+function extractEntities(idea) {
+  const proper = extractProperNouns(idea);
+  const capped = (word) => (word && proper.includes(word) ? word : "");
+  const roleAlt = ROLE_WORDS.map((w) => w.replace(/[^a-z ]/gi, "")).join("|");
+
+  const named = idea.match(/\b(?:named|called)\s+([A-Z][a-zA-Z]+)/);
+  const titled = idea.match(new RegExp(`\\b(?:${roleAlt})\\s+([A-Z][a-zA-Z]+)`, "i"));
+  const located = idea.match(/\b(?:[Ii]n|[Aa]t|[Aa]cross|[Nn]ear|[Tt]hrough|[Ii]nto|[Bb]eneath|[Oo]utside|[Ii]nside|[Ff]rom|[Tt]o)\s+(?:the\s+)?(?:[a-z]+\s+of\s+)?([A-Z][a-zA-Z]+)/);
+
+  const place = capped(located && located[1]);
+  const name = capped(named && named[1]) ||
+    (titled && /^[A-Z]/.test(titled[1]) ? capped(titled[1]) : "") ||
+    proper.find((n) => n !== place) || "";
+  const finalPlace = place && place !== name ? place : "";
+  const names = uniqueList([name, finalPlace, ...proper]);
+  return { name, place: finalPlace, names };
 }
 
 function extractGoal(idea) {
@@ -323,17 +348,33 @@ function extractGoal(idea) {
   return "";
 }
 
-function detectSignals(lower) {
+// "No murder, war, or conspiracy" must not switch those signals on.
+function stripNegated(lower) {
+  return lower.replace(
+    /\b(?:no|without|never|nor|zero)\s+[\w-]+(?:\s*,\s*(?:(?:or|and|nor)\s+)?[\w-]+|\s+(?:or|and|nor)\s+[\w-]+)*/g,
+    " "
+  );
+}
+
+// Whole-word matches only ("reward" is not "war", "research" is not "sea").
+function detectSignals(rawLower) {
+  const lower = stripNegated(rawLower);
   return {
-    hasMagic: /magic|spell|curse|wizard|witch|sorcer|enchant|dragon|demon|fae|rune/.test(lower),
-    hasMystery: /secret|hidden|mystery|murder|missing|disappear|clue|detective|investigat|conspiracy|cover-?up/.test(lower),
-    hasWar: /war|battle|invasion|rebellion|revolution|empire|regime|army|soldier|siege/.test(lower),
-    hasSea: /sea|ocean|island|tide|harbor|ship|sail|coast|shore|port|wave/.test(lower),
-    hasSciFi: /space|planet|mars|moon|galaxy|starship|spaceship|robot|\bai\b|cyborg|alien|quantum|colony|orbit|simulation/.test(lower),
-    hasRomance: /love|romance|marriage|heartbreak|relationship|wedding|affair|crush|lover/.test(lower),
-    hasTech: /startup|software|app|algorithm|data|engineer|silicon|code|platform|venture/.test(lower),
-    hasCrime: /heist|crime|gang|cartel|mafia|murder|theft|smuggl|detective|police/.test(lower)
+    hasMagic: /\b(?:magic\w*|spells?|curse\w*|wizard\w*|witch\w*|sorcer\w*|enchant\w*|dragon\w*|demon\w*|fae|runes?)\b/.test(lower),
+    hasMystery: /\b(?:secrets?|hidden|mystery|mysterious|murder\w*|missing|disappear\w*|clues?|detectives?|investigat\w*|conspirac\w*|cover-?ups?)\b/.test(lower),
+    hasWar: /\b(?:wars?|battles?|invasions?|rebell\w*|revolution\w*|empires?|regimes?|armies|army|soldiers?|sieges?)\b/.test(lower),
+    hasSea: /\b(?:seas?|oceans?|islands?|tides?|harbou?rs?|ships?|sail\w*|coasts?|coastal|shores?|ports?|waves?)\b/.test(lower),
+    hasSciFi: /\b(?:space|planets?|mars|moon|galaxy|galaxies|starships?|spaceships?|robots?|ai|cyborgs?|aliens?|quantum|colony|colonies|orbit\w*|simulation\w*)\b/.test(lower),
+    hasRomance: /\b(?:love\w*|romanc\w*|marriage|marri\w*|heartbreak\w*|relationships?|wedding\w*|affairs?|crush\w*|lovers?)\b/.test(lower),
+    hasTech: /\b(?:startups?|software|apps?|algorithms?|data|engineers?|silicon|code|platforms?|ventures?)\b/.test(lower),
+    hasCrime: /\b(?:heists?|crimes?|criminals?|gangs?|cartels?|mafia|murder\w*|theft|smuggl\w*|detectives?|police)\b/.test(lower)
   };
+}
+
+// Only an explicit "X is/are at stake" overrides the genre's default stakes.
+function extractStakes(idea) {
+  const m = idea.match(/([A-Za-z][A-Za-z' -]{3,50}?)\s+(?:is|are)\s+at\s+stake/i);
+  return m ? m[1].trim().replace(/^(?:and|but|while|when|because)\s+/i, "") : "";
 }
 
 function genreKeyFromInput(input, signals) {
@@ -361,15 +402,12 @@ function genreKeyFromInput(input, signals) {
  */
 function buildWorld(idea, input, signals) {
   const profile = GENRE_PROFILES[genreKeyFromInput(input, signals)] || GENRE_PROFILES.default;
-  const names = extractProperNouns(idea);
+  const { name, place, names } = extractEntities(idea);
   const role = findFirstMatch(idea, ROLE_WORDS);
   const settingWord = findFirstMatch(idea, SETTING_WORDS);
   const objectWord = findFirstMatch(idea, OBJECT_WORDS);
   const forceWord = findFirstMatch(idea, FORCE_WORDS);
   const goal = extractGoal(idea);
-
-  const name = names[0] || "";
-  const place = names.find((n) => n !== name) || "";
 
   let protagonist;
   let protagonistShort;
@@ -396,7 +434,7 @@ function buildWorld(idea, input, signals) {
   const object = objectWord ? `the ${objectWord}` : profile.object;
   const antagonist = forceWord ? `the ${forceWord}` : profile.force;
   const resolvedGoal = goal || `to ${signals.hasWar ? "stop the coming catastrophe" : "set things right"}`;
-  const stakes = profile.stakes;
+  const stakes = extractStakes(idea) || profile.stakes;
 
   // Short, title-safe tokens. Only populated from genuinely extracted concrete
   // words so chapter/book titles never inline a long fallback phrase.
@@ -667,13 +705,32 @@ function chapterCountFromLength(length, depthLevel) {
   return 14;
 }
 
+// Fit the story beats to the chapter count: short books drop the least
+// essential setup beats, long books add escalations before the midpoint and the
+// collapse, and the confrontation and resolution always close the book.
+function beatsForChapterCount(count) {
+  const beats = FICTION_BEATS.slice();
+  const droppable = ["New World Rules", "Refusal / Pressure", "First Doorway", "First Major Cost", "Ordinary World"];
+  while (beats.length > Math.max(count, 4) && droppable.length) {
+    beats.splice(beats.indexOf(droppable.shift()), 1);
+  }
+  let extra = 0;
+  while (beats.length < count) {
+    extra += 1;
+    const anchor = extra % 2 ? "Midpoint Revelation" : "Dark Night Choice";
+    beats.splice(beats.indexOf(anchor), 0, `Escalation ${extra}`);
+  }
+  return beats;
+}
+
 function buildFictionChapterIntelligence(concept, chapterCount, seed) {
   const world = concept.world;
   const titles = makeChapterTitles(world, "fiction", chapterCount, seed);
   const blocks = [];
+  const beats = beatsForChapterCount(chapterCount);
 
   for (let i = 0; i < chapterCount; i += 1) {
-    const beat = FICTION_BEATS[i] || `Escalation ${i - FICTION_BEATS.length + 1}`;
+    const beat = beats[i];
     const content = makeBeatContent(beat, world, i);
     blocks.push([
       `${i + 1}. ${titles[i]}`,
@@ -926,9 +983,35 @@ function buildPublisherExtras(input, engineType, titleIdeas) {
   ];
 }
 
+const CHAPTER_MODULE_RE = /chapter outline|chapter-by-chapter learning path|memory map/i;
+
+const TONE_GUIDES = {
+  Professional: ["Clear, credible, and measured.", "Short declarative sentences; concrete nouns; no hype.", "Avoid slang, exclamation marks, and vague superlatives."],
+  Cinematic: ["Visual, kinetic, and scene-first.", "Open on action or image; cut scenes at the moment of consequence.", "Avoid summary and abstraction where an image would do."],
+  Poetic: ["Lyrical, image-rich, and rhythmic.", "Let metaphor carry feeling; vary sentence length like breath.", "Avoid clichés and stacked adjectives."],
+  Academic: ["Precise, evidence-led, and structured.", "Define terms, cite support, and qualify claims.", "Avoid anecdote without analysis and casual phrasing."],
+  Simple: ["Plain, warm, and direct.", "Everyday words; one idea per sentence; explain jargon.", "Avoid long sentences and insider terms."],
+  Bold: ["Confident, punchy, and opinionated.", "Lead with the claim; use strong verbs and sharp contrasts.", "Avoid hedging words such as maybe, perhaps, or somewhat."],
+  Emotional: ["Intimate, vulnerable, and sensory.", "Stay close to feeling; name the body's reaction before the idea.", "Avoid detachment and generalities."]
+};
+
+function buildToneModule(tone) {
+  const guide = TONE_GUIDES[tone] || TONE_GUIDES.Professional;
+  return {
+    title: "Tone & Voice",
+    body: [`Voice: ${tone || "Professional"}`, `Feel: ${guide[0]}`, `Do: ${guide[1]}`, `Avoid: ${guide[2]}`].join("\n")
+  };
+}
+
 function applyDepthLevel(modules, input, engineType, titleIdeas) {
   if (input.depthLevel === "Quick Blueprint") {
-    return modules.slice(0, Math.min(10, modules.length));
+    // Keep the chapter plan even when it sits past the tenth module.
+    const quick = modules.slice(0, 10);
+    const chapters = modules.find((mod) => CHAPTER_MODULE_RE.test(mod.title));
+    if (chapters && !quick.includes(chapters)) {
+      quick.splice(quick.length - 1, 1, chapters);
+    }
+    return quick;
   }
   if (input.depthLevel === "Publisher-Level Blueprint") {
     return modules.concat(buildPublisherExtras(input, engineType, titleIdeas));
@@ -1045,6 +1128,7 @@ function buildBlueprint(input) {
 
   modules = [{ title: "Concept Analyzer", body: buildCoreAnchors(input, concept).join("\n") }].concat(modules);
   modules = [{ title: "Title Ideas", body: titleIdeas.map((item, idx) => `${idx + 1}. ${item}`).join("\n") }].concat(modules);
+  modules.splice(2, 0, buildToneModule(input.tone));
   modules = applyDepthLevel(modules, input, engineType, titleIdeas);
   modules = ensureUniqueModuleTitles(modules);
 

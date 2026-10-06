@@ -276,6 +276,43 @@ test("share links are validated before they are offered", () => {
   assert.ok(edge.ok && engine.decodeShareState(edge.encoded).bookIdea.length === engine.SHARE_FIELD_MAX);
 });
 
+function beatsOf(input) {
+  const outline = engine.buildBlueprint(input).modules.find((m) => /chapter outline/i.test(m.title));
+  return outline ? (outline.body.match(/Story Beat:\n(.*)/g) || []).map((s) => s.replace("Story Beat:\n", "")) : null;
+}
+
+test("fiction beats fit every chapter count and always end on the resolution", () => {
+  [["Professional Blueprint", 40000], ["Professional Blueprint", 60000], ["Professional Blueprint", 90000],
+    ["Publisher-Level Blueprint", 60000], ["Quick Blueprint", 60000]].forEach(([depthLevel, length]) => {
+    const beats = beatsOf(baseInput({ bookType: "Fiction", depthLevel, length }));
+    assert.ok(beats, `${depthLevel}/${length} must include a chapter outline`);
+    assert.deepStrictEqual(beats.slice(-2), ["Final Confrontation", "New Order"], `${depthLevel}/${length} ending`);
+    ["Opening Image", "Inciting Incident", "Midpoint Revelation"].forEach((b) => assert.ok(beats.includes(b), b));
+    assert.strictEqual(new Set(beats).size, beats.length, "no repeated beats");
+  });
+});
+
+test("tone changes the generated blueprint", () => {
+  const a = JSON.stringify(engine.buildBlueprint(baseInput({ tone: "Professional" })).modules);
+  const b = JSON.stringify(engine.buildBlueprint(baseInput({ tone: "Poetic" })).modules);
+  assert.notStrictEqual(a, b);
+});
+
+test("entities and signals come from sentence structure, not word order", () => {
+  const world = (idea) => engine.analyzeConcept(idea, baseInput({})).world;
+  let w = world("In London, a detective named Mara must stop a killer");
+  assert.strictEqual(w.protagonist, "Mara, a detective");
+  assert.strictEqual(w.settingPhrase, "London");
+  w = world("Detective Mara must save her sister in Paris");
+  assert.strictEqual(w.protagonist, "Mara, a detective");
+  assert.strictEqual(w.settingPhrase, "Paris");
+  const c = engine.analyzeConcept("a nurse must earn a reward for research into healthy relationships", baseInput({}));
+  assert.ok(!c.hasWar && !c.hasSea, "substrings of other words are not signals");
+  const negated = engine.analyzeConcept("There is no murder, war, or conspiracy here.", baseInput({}));
+  assert.ok(!negated.hasWar && !negated.hasMystery && !negated.hasCrime, "negated signals stay off");
+  assert.strictEqual(world("A baker named Ilse in Lyon. Her sister's life is at stake.").stakes, "Her sister's life");
+});
+
 console.log(`\n${passed} checks passed.`);
 if (process.exitCode) {
   console.error("\nSome tests failed.");
